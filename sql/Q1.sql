@@ -4,7 +4,7 @@ SELECT AVG(100.0 * (CASE WHEN booked.booked_seats IS NULL THEN 0 ELSE booked.boo
 FROM
   (SELECT flight_number, aircraft_id_number
 	FROM flight
-    WHERE departure_datetime < NOW()  AND status = 'ACTIVE') AS past_flights 
+    WHERE departure_datetime < datetime('now')  AND status = 'ACTIVE') AS past_flights
 	JOIN (SELECT aircraft_id_number, COUNT(*) AS total_seats
 		  FROM seat
 		  GROUP BY aircraft_id_number) AS ac_seat ON ac_seat.aircraft_id_number = past_flights.aircraft_id_number 

@@ -71,22 +71,22 @@ def history():
             f.destination_airport,
             r.reservations_status as raw_status,
             CASE 
-                WHEN r.reservations_status = 'ACTIVE' AND f.departure_datetime >= NOW() THEN 'פעילה'
-                WHEN r.reservations_status = 'ACTIVE' AND f.departure_datetime < NOW() THEN 'בוצעה'
+                WHEN r.reservations_status = 'ACTIVE' AND f.departure_datetime >= datetime('now') THEN 'פעילה'
+                WHEN r.reservations_status = 'ACTIVE' AND f.departure_datetime < datetime('now') THEN 'בוצעה'
                 WHEN r.reservations_status = 'CUSTOMER_CANCELED' THEN 'ביטול לקוח'
                 WHEN r.reservations_status = 'SYSTEM_CANCELED' THEN 'ביטול מערכת'
                 ELSE r.reservations_status
             END as display_status
         FROM reservations r
         JOIN flight f ON r.flight_number = f.flight_number
-        WHERE r.email = %s
+        WHERE r.email = ?
     """
     params = [user_email]
 
     if status_filter == 'active_future':
-        query += " AND r.reservations_status = 'ACTIVE' AND f.departure_datetime >= NOW()"
+        query += " AND r.reservations_status = 'ACTIVE' AND f.departure_datetime >= datetime('now')"
     elif status_filter == 'completed':
-        query += " AND r.reservations_status = 'ACTIVE' AND f.departure_datetime < NOW()"
+        query += " AND r.reservations_status = 'ACTIVE' AND f.departure_datetime < datetime('now')"
     elif status_filter == 'customer_cancelled':
         query += " AND r.reservations_status = 'CUSTOMER_CANCELED'"
     elif status_filter == 'system_cancelled':
@@ -100,10 +100,14 @@ def history():
 
     # לוגיקת עיבוד הנתונים - כאן התיקון
     now = datetime.now()
+    orders_list = []
     for o in orders:
+        o = dict(o)
         # 1. בדיקת זמנים
         if o['departure_datetime']:
-            time_diff = o['departure_datetime'] - now
+            departure_datetime = datetime.strptime(o['departure_datetime'], '%Y-%m-%d %H:%M:%S')
+            o['departure_datetime'] = departure_datetime
+            time_diff = departure_datetime - now
             o['is_urgent'] = time_diff < timedelta(hours=36) and time_diff > timedelta(0)
         else:
             o['is_urgent'] = False
@@ -114,8 +118,9 @@ def history():
 
         # חישוב 5 אחוז ועיגול
         o['cancellation_fee'] = round(float(payment_value) * 0.05, 2)
+        orders_list.append(o)
 
-    return render_template('history.html', orders=orders, current_filter=status_filter)
+    return render_template('history.html', orders=orders_list, current_filter=status_filter)
 
 @app.route('/cancel_reservation', methods=['POST'])
 def cancel_reservation():
@@ -132,35 +137,35 @@ def cancel_reservation():
                 SELECT f.departure_datetime, r.total_payment 
                 FROM reservations r
                 JOIN flight f ON r.flight_number = f.flight_number
-                WHERE r.reservation_code = %s AND r.email = %s
+                WHERE r.reservation_code = ? AND r.email = ?
             """, (res_code, user_email))
 
             result = cur.fetchone()
 
             if result:
-                flight_time = result['departure_datetime']
                 original_price = result['total_payment']
                 now = datetime.now()
 
                 # 2. שחרור המושבים בטיסה
-                cur.execute("DELETE FROM seats_in_reservation WHERE reservation_code = %s", (res_code,))
+                cur.execute("DELETE FROM seats_in_reservation WHERE reservation_code = ?", (res_code,))
 
                 # 3. עדכון הסטטוס והמחיר (לפי חוק ה-36 שעות)
+                flight_time = datetime.strptime(result['departure_datetime'], '%Y-%m-%d %H:%M:%S')
                 if flight_time > now + timedelta(hours=36):
                     # חיוב של 5% בלבד
                     new_price = float(original_price) * 0.05
                     cur.execute("""
                         UPDATE reservations 
                         SET reservations_status = 'CUSTOMER_CANCELED', 
-                            total_payment = %s
-                        WHERE reservation_code = %s
+                            total_payment = ?
+                        WHERE reservation_code = ?
                     """, (new_price, res_code))
                 else:
                     # חיוב מלא (אין שינוי במחיר, רק בסטטוס) - הפסיק המיותר הוסר כאן
                     cur.execute("""
                         UPDATE reservations 
                         SET reservations_status = 'CUSTOMER_CANCELED'
-                        WHERE reservation_code = %s
+                        WHERE reservation_code = ?
                     """, (res_code,))
 
     # מחזיר את המשתמש ישירות לדף ההיסטוריה, שם הוא יראה את הסטטוס החדש בטבלה
@@ -183,21 +188,21 @@ def flight_search_customers():
         FROM flight f
         JOIN airport a1 ON f.origin_airport = a1.airport_name
         JOIN airport a2 ON f.destination_airport = a2.airport_name
-        WHERE f.departure_datetime >= NOW() AND f.status = 'ACTIVE'
+        WHERE f.departure_datetime >= datetime('now') AND f.status = 'ACTIVE'
 
     """
     params = []
 
     if departure_date:
-        query += " AND DATE(f.departure_datetime) = %s"
+        query += " AND DATE(f.departure_datetime) = ?"
         params.append(departure_date)
 
     if origin_country:
-        query += " AND a1.country LIKE %s"
+        query += " AND a1.country LIKE ?"
         params.append(f"%{origin_country}%")
 
     if destination_country:
-        query += " AND a2.country LIKE %s"
+        query += " AND a2.country LIKE ?"
         params.append(f"%{destination_country}%")
 
     query += " ORDER BY f.departure_datetime"
@@ -252,21 +257,21 @@ def flight_search_guest():
         FROM flight f
         JOIN airport a1 ON f.origin_airport = a1.airport_name
         JOIN airport a2 ON f.destination_airport = a2.airport_name
-        WHERE f.departure_datetime >= NOW() AND f.status = 'ACTIVE'
+        WHERE f.departure_datetime >= datetime('now') AND f.status = 'ACTIVE'
 
     """
     params = []
 
     if departure_date:
-        query += " AND DATE(f.departure_datetime) = %s"
+        query += " AND DATE(f.departure_datetime) = ?"
         params.append(departure_date)
 
     if origin_country:
-        query += " AND a1.country LIKE %s"
+        query += " AND a1.country LIKE ?"
         params.append(f"%{origin_country}%")
 
     if destination_country:
-        query += " AND a2.country LIKE %s"
+        query += " AND a2.country LIKE ?"
         params.append(f"%{destination_country}%")
 
     query += " ORDER BY f.departure_datetime"
@@ -297,15 +302,15 @@ def results():
     params = []
 
     if departure_date:
-        query += " AND DATE(departure_datetime) = %s"
+        query += " AND DATE(departure_datetime) = ?"
         params.append(departure_date)
 
     if origin_airport:
-        query += " AND origin_airport = %s"
+        query += " AND origin_airport = ?"
         params.append(origin_airport)
 
     if destination_airport:
-        query += " AND destination_airport = %s"
+        query += " AND destination_airport = ?"
         params.append(destination_airport)
 
     query += " ORDER BY departure_datetime"
@@ -339,7 +344,7 @@ def login_managers():
         manager = authenticate_manager(tz, password)
         if manager:
             session['manager_id'] = manager['id_number']
-            session['manager_name'] = manager.get('first_name')
+            session['manager_name'] = manager['first_name']
             return redirect('/cancel_flight_manager')
         else:
             return render_template("login_managers.html", message="Invalid Details")
@@ -435,19 +440,22 @@ def sign_in_show_tickets():
 
     # --- הוספת הלוגיקה עבור הודעות הביטול ---
     now = datetime.now()
+    reservations_list = []
     for r in reservations:
+        r = dict(r)
         # בדיקה אם הטיסה דחופה (פחות מ-36 שעות)
         if r['departure_datetime']:
-            time_diff = r['departure_datetime'] - now
+            datetime_object = datetime.strptime(r['departure_datetime'], '%Y-%m-%d %H:%M:%S')
+            time_diff = datetime_object - now
             r['is_urgent'] = time_diff < timedelta(hours=36) and time_diff > timedelta(0)
         else:
             r['is_urgent'] = False
 
-        # חישוב דמי ביטול (5% מהמחיר)
         payment_value = r.get('total_payment') or 0
         r['cancellation_fee'] = round(float(payment_value) * 0.05, 2)
+        reservations_list.append(r)
 
-    return render_template("tickets_results.html", reservations=reservations, email=email)
+    return render_template("tickets_results.html", reservations=reservations_list, email=email)
 
 
 @app.route("/cancel_reservation_post", methods=["POST"])
@@ -621,7 +629,7 @@ def manager_add_flight():
 
         arrival_dt = departure_dt + timedelta(minutes=int(duration))
         aircraft_list = get_available_aircraft(departure_dt, arrival_dt, origin, long_required)
-        aircraft_list = [a for a in (aircraft_list or []) if (a.get("size") or "").upper() == selected_size]
+        aircraft_list = [a for a in (aircraft_list or []) if (a["size"] or "").upper() == selected_size]
 
         pilots_list = get_available_pilots(departure_dt, arrival_dt, origin, long_required)
         attendants_list = get_available_attendants(departure_dt, arrival_dt, origin, long_required)
@@ -668,7 +676,7 @@ def manager_add_flight():
 
         with db_conn() as cur:
             cur.execute(
-                "SELECT size FROM aircraft WHERE aircraft_id_number = %s;",
+                "SELECT size FROM aircraft WHERE aircraft_id_number = ?;",
                 (aircraft_id_number,)
             )
             row = cur.fetchone()
@@ -929,7 +937,7 @@ def manager_add_flight():
     arrival_dt = departure_dt + timedelta(minutes=int(duration))
 
     aircraft_list = get_available_aircraft(departure_dt, arrival_dt, origin, long_required)
-    aircraft_list = [a for a in (aircraft_list or []) if (a.get("size") or "").upper() == selected_size]
+    aircraft_list = [a for a in (aircraft_list or []) if (a["size"] or "").upper() == selected_size]
 
     pilots_list = get_available_pilots(departure_dt, arrival_dt, origin, long_required)
     attendants_list = get_available_attendants(departure_dt, arrival_dt, origin, long_required)
@@ -1051,11 +1059,11 @@ def review_order():
                 """
                 SELECT `price`
                 FROM `seats_in_flights`
-                WHERE `aircraft_id_number` = %s
-                  AND `flight_number` = %s
-                  AND `class_type` = %s
-                  AND `row_number` = %s
-                  AND `column_number` = %s
+                WHERE `aircraft_id_number` = ?
+                  AND `flight_number` = ?
+                  AND `class_type` = ?
+                  AND `row_number` = ?
+                  AND `column_number` = ?
                 """,
                 (aircraft_id, flight_number, str(s.get("class_type")).upper(), s.get("row_number"),
                  s.get("column_number"))
@@ -1153,7 +1161,7 @@ def place_order_customer():
         cur.execute("""
             SELECT email, first_name, last_name
             FROM customer
-            WHERE email = %s
+            WHERE email = ?
         """, (email,))
         customer = cur.fetchone()
 
@@ -1161,7 +1169,7 @@ def place_order_customer():
         cur.execute("""
             SELECT phone_number
             FROM customer_phone_number
-            WHERE email = %s
+            WHERE email = ?
             ORDER BY phone_number
         """, (email,))
 
@@ -1221,11 +1229,11 @@ def review_order_customer():
                 """
                 SELECT `price`
                 FROM `seats_in_flights`
-                WHERE `aircraft_id_number` = %s
-                  AND `flight_number` = %s
-                  AND `class_type` = %s
-                  AND `row_number` = %s
-                  AND `column_number` = %s
+                WHERE `aircraft_id_number` = ?
+                  AND `flight_number` = ?
+                  AND `class_type` = ?
+                  AND `row_number` = ?
+                  AND `column_number` = ?
                 """,
                 (aircraft_id, flight_number, str(s.get("class_type")).upper(),
                  s.get("row_number"), s.get("column_number"))
@@ -1437,7 +1445,7 @@ def payment_customer_post():
         cur.execute("""
             SELECT email, first_name, last_name
             FROM customer
-            WHERE email = %s
+            WHERE email = ?
             LIMIT 1;
         """, (email,))
         customer = cur.fetchone()
@@ -1445,7 +1453,7 @@ def payment_customer_post():
         cur.execute("""
             SELECT phone_number
             FROM customer_phone_number
-            WHERE email = %s
+            WHERE email = ?
             ORDER BY phone_number;
         """, (email,))
         phones = [r["phone_number"] for r in (cur.fetchall() or [])]
@@ -1453,6 +1461,7 @@ def payment_customer_post():
     if not customer:
         return redirect(url_for("flight_search_customers"))
 
+    customer = dict(customer)
     profile = {
         "email": customer["email"],
         "first_name": customer.get("first_name"),
