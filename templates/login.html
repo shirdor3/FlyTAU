@@ -1,0 +1,35 @@
+{% extends "layout_page.html" %}
+
+
+{% block title %}FLYTAU - התחברות{% endblock %}
+
+{% block page_title %}התחברות לחשבון️{% endblock %}
+
+{% block content %}
+
+{% if message %}
+    <div class="message-banner success">{{ message }}</div>
+{% endif %}
+
+<form action="/login" method="post" class="login-form">
+
+    <div class="form-group">
+        <label for="email">אימייל</label>
+        <input type="email" id="email" name="email" placeholder="example@mail.com" required>
+    </div>
+
+    <div class="form-group">
+        <label for="password">סיסמה</label>
+        <input type="password" id="password" name="password" placeholder="********" required>
+    </div>
+
+    <button type="submit" class="btn login-btn">התחבר</button>
+
+<p class="login-extra">
+    אין לך חשבון?
+    <a href="/signup" class="white-glow-hover">להרשמה</a>
+</p>
+
+</form>
+
+{% endblock %}

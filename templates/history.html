@@ -1,0 +1,118 @@
+{% extends "layout_page.html" %}
+
+{% block ruler %}
+<ul class="nav-links">
+  <li>
+    <a href="/flight_search_customers" class="white-glow-hover">חיפוש טיסה וביצוע הזמנה</a>
+  </li>
+  <li>
+    <a href="/history" class="white-glow-hover">היסטוריית הזמנות</a>
+  </li>
+</ul>
+{% endblock %}
+
+{% block page_title %}היסטוריית ההזמנות שלי{% endblock %}
+
+{% block content %}
+<section class="card">
+    <div class="card-header">
+        <form method="GET" action="/history" class="filter-form">
+            <label for="status">סנן לפי סטטוס:</label>
+            <select name="status" id="status" onchange="this.form.submit()">
+                <option value="all" {% if current_filter == 'all' %}selected{% endif %}>הכל</option>
+                <option value="active_future" {% if current_filter == 'active_future' %}selected{% endif %}>פעילה (עתידית)</option>
+                <option value="completed" {% if current_filter == 'completed' %}selected{% endif %}>בוצעה (עבר)</option>
+                <option value="customer_cancelled" {% if current_filter == 'customer_cancelled' %}selected{% endif %}>ביטול לקוח</option>
+                <option value="system_cancelled" {% if current_filter == 'system_cancelled' %}selected{% endif %}>ביטול מערכת</option>
+            </select>
+        </form>
+    </div>
+
+    <div class="table-wrap">
+        <table class="flights-table">
+            <thead>
+                <tr>
+                    <th>קוד הזמנה</th>
+                    <th>מספר טיסה</th>
+                    <th>יעד ✈ מקור</th>
+                    <th>תאריך המראה</th>
+                    <th>סטטוס</th>
+                    <th>פעולות</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for o in orders %}
+                <tr>
+                    <td>{{ o.reservation_code }}</td>
+                    <td>{{ o.flight_number }}</td>
+                    <td>{{ o.origin_airport }} ✈ {{ o.destination_airport }}</td>
+                    <td>{{ o.departure_datetime.strftime('%d/%m/%Y %H:%M') if o.departure_datetime else '' }}</td>
+                    <td>
+                        <span class="status-label status-{{ o.raw_status }}">
+                            {{ o.display_status }}
+                        </span>
+                    </td>
+                    <td>
+                        {% if o.display_status == 'פעילה' %}
+                        <form method="POST" action="/cancel_reservation" id="cancel-form-{{ o.reservation_code }}">
+                            <input type="hidden" name="reservation_code" value="{{ o.reservation_code }}">
+                            <button type="button" class="btn-cancel"
+                                onclick="handleCancel('{{ o.reservation_code }}', {{ 'true' if o.is_urgent else 'false' }}, '{{ o.cancellation_fee }}')">
+                                ביטול הזמנה
+                            </button>
+                        </form>
+                        {% else %}
+                        <span style="color: #999;">-</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% if not orders %}
+            <p style="text-align: center; padding: 20px;">לא נמצאו הזמנות התואמות לחיפוש</p>
+        {% endif %}
+    </div>
+</section>
+
+<style>
+    .filter-form { margin-bottom: 20px; padding: 10px; background: rgba(255,255,255,0.1); border-radius: 8px; }
+    .status-label { padding: 4px 8px; border-radius: 4px; font-size: 0.85em; font-weight: bold; }
+    .status-ACTIVE { background-color: #d4edda; color: #155724; }
+    .status-CUSTOMER_CANCELED { background-color: #f8d7da; color: #721c24; }
+    .status-SYSTEM_CANCELED { background-color: #e2e3e5; color: #383d41; }
+
+    .btn-cancel {
+        background-color: #ff4d4d;
+        color: white;
+        border: none;
+        padding: 6px 12px;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: 0.3s;
+    }
+    .btn-cancel:hover { background-color: #cc0000; }
+</style>
+
+<script>
+/**
+ * פונקציה לטיפול באישור ביטול הזמנה
+ * @param {string} resCode - קוד ההזמנה
+ * @param {boolean} isUrgent - האם הטיסה בעוד פחות מ-36 שעות
+ * @param {string} fee - גובה דמי הביטול (5%)
+ */
+function handleCancel(resCode, isUrgent, fee) {
+    let confirmMessage = "";
+
+    if (isUrgent) {
+        confirmMessage = "האם אתה בטוח שברצונך לבטל?\n\nלתשומת ליבך, הטיסה שלך מתקיימת עוד פחות מ-36 שעות. לכן, בהתאם לתקנון תחוייב במחיר ההזמנה המלא.";
+    } else {
+        confirmMessage = "האם אתה בטוח שברצונך לבטל?\n\nלתשומת ליבך, לפי התקנון תחוייב בדמי ביטול בגובה 5% מסך ההזמנה, שהם " + fee + "₪";
+    }
+
+    if (confirm(confirmMessage)) {
+        document.getElementById('cancel-form-' + resCode).submit();
+    }
+}
+</script>
+{% endblock %}

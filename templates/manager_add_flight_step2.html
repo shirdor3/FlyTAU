@@ -1,0 +1,115 @@
+{% extends "layout_page.html" %}
+{% block title %}FLYTAU{% endblock %}
+{% block page_title %}הוספת טיסה{% endblock %}
+
+{% block ruler %}
+<ul class="nav-links">
+    <li><a href="/add_crew" class="white-glow-hover">הוספת אנשי צוות</a></li>
+    <li><a href="/manager_buy_aircraft" class="white-glow-hover">הוספת מטוס</a></li>
+    <li><a href="/manager_add_flight" class="white-glow-hover">הוספת טיסה</a></li>
+    <li><a href="/cancel_flight_manager" class="white-glow-hover">הצגת טיסות</a></li>
+    <li><a href="/manager_reports" class="white-glow-hover">סטטיסטיקה ודוחות</a></li>
+</ul>
+{% endblock %}
+
+{% block content %}
+
+{% if error %}<p class="error-text">{{ error }}</p>{% endif %}
+{% if message %}<p class="success-text">{{ message }}</p>{% endif %}
+
+<div class="card">
+  <p><strong>מסלול:</strong> {{ origin }} → {{ destination }}</p>
+  <p><strong>המראה:</strong> {{ dep_date }} {{ dep_time }}</p>
+  <p><strong>משך:</strong> {{ duration }} דקות</p>
+  <p><strong>נחיתה משוערת:</strong> {{ arrival_dt }}</p>
+
+  <p><strong>גודל מטוס:</strong> {{ aircraft_size_selected }}</p>
+
+  {% if generated_flight_number is defined and generated_flight_number is not none %}
+    <p><strong>מספר טיסה חדשה:</strong> {{ "%04d"|format(generated_flight_number) }}</p>
+  {% endif %}
+
+  {% if long_required %}
+    <p class="info-text"><strong>טיסה ארוכה:</strong> מוצגים רק אנשי צוות מוסמכים לטיסות ארוכות</p>
+  {% endif %}
+</div>
+
+<form method="POST" action="{{ url_for('manager_add_flight') }}" class="card form">
+  <input type="hidden" name="origin_airport" value="{{ origin }}">
+  <input type="hidden" name="destination_airport" value="{{ destination }}">
+  <input type="hidden" name="departure_date" value="{{ dep_date }}">
+  <input type="hidden" name="departure_time" value="{{ dep_time }}">
+  <input type="hidden" name="flight_number" value="{{ generated_flight_number }}">
+  <input type="hidden" name="aircraft_size" value="{{ aircraft_size_selected }}">
+
+  <label>בחירת מטוס </label>
+  <select name="aircraft_id_number" required>
+    {% set selected_aircraft = request.form.get('aircraft_id_number','') %}
+    {% for a in aircraft_list %}
+      <option value="{{ a.aircraft_id_number }}"
+              {% if selected_aircraft and selected_aircraft|int == a.aircraft_id_number %}selected{% endif %}>
+        {{ a.aircraft_id_number }} ({{ a.size }}, {{ a.manufacturer }})
+      </option>
+    {% endfor %}
+  </select>
+
+  <hr>
+
+  <h3>בחירת טייסים</h3>
+  <p class="info-text">יש לבחור בדיוק {{ req.pilots }} טייסים</p>
+
+  {% set chosen_pilots = request.form.getlist('pilots_ids') %}
+
+  {% for i in range(req.pilots) %}
+    <label>טייס מס' {{ i + 1 }}</label>
+    <select name="pilots_ids" required>
+      <option value="">בחר טייס</option>
+      {% for p in pilots_list %}
+        <option value="{{ p.id_number }}"
+                {% if chosen_pilots|length > i and chosen_pilots[i]|int == p.id_number %}selected{% endif %}>
+          {{ p.id_number }} - {{ p.first_name }} {{ p.last_name }}
+          {% if p.long_flight_certification %}(Long){% endif %}
+        </option>
+      {% endfor %}
+    </select>
+  {% endfor %}
+
+  <hr>
+
+  <h3>בחירת דיילים</h3>
+  <p class="info-text">יש לבחור בדיוק {{ req.attendants }} דיילים</p>
+
+  {% set chosen_attendants = request.form.getlist('attendants_ids') %}
+
+  {% for i in range(req.attendants) %}
+    <label>דייל מס' {{ i + 1 }}</label>
+    <select name="attendants_ids" required>
+      <option value="">בחר דייל</option>
+      {% for a in attendants_list %}
+        <option value="{{ a.id_number }}"
+                {% if chosen_attendants|length > i and chosen_attendants[i]|int == a.id_number %}selected{% endif %}>
+          {{ a.id_number }} - {{ a.first_name }} {{ a.last_name }}
+          {% if a.long_flight_certification %}(Long){% endif %}
+        </option>
+      {% endfor %}
+    </select>
+  {% endfor %}
+
+  <hr>
+
+  <h3>מחירים למחלקות</h3>
+
+  <label>מחיר ECONOMY</label>
+  <input type="number" name="price_ECONOMY" min="0" step="0.01"
+         required value="{{ request.form.get('price_ECONOMY','') }}">
+
+  {% if aircraft_size_selected == "LARGE" %}
+    <label>מחיר BUSINESS</label>
+    <input type="number" name="price_BUSINESS" min="0" step="0.01"
+           required value="{{ request.form.get('price_BUSINESS','') }}">
+  {% endif %}
+
+  <button class="btn-primary" type="submit">צור טיסה</button>
+</form>
+
+{% endblock %}

@@ -1,0 +1,88 @@
+{# templates/tickets_results.html #}
+{% extends "layout_page.html" %}
+
+{% block ruler %}
+<ul class="nav-links">
+  <li>
+    <a href="/flight_search_guest" class="white-glow-hover">חיפוש טיסה וביצוע הזמנה</a>
+  </li>
+  <li>
+    <a href="/sign_in_show_tickets" class="white-glow-hover">הצגת כרטיסים פעילים</a>
+  </li>
+</ul>
+{% endblock %}
+
+{% block title %}FLYTAU{% endblock %}
+{% block page_title %}ההזמנות הפעילות שלך{% endblock %}
+
+{% block content %}
+<script>
+function handleCancel(resCode, isUrgent, fee) {
+    let confirmMessage = "";
+
+    if (isUrgent === "True") {
+        confirmMessage = "האם אתה בטוח שברצונך לבטל?\n\nלתשומת ליבך, הטיסה שלך מתקיימת עוד פחות מ-36 שעות. לכן, בהתאם לתקנון תחוייב במחיר ההזמנה המלא.";
+    } else {
+        confirmMessage = "האם אתה בטוח שברצונך לבטל?\n\nלתשומת ליבך, לפי התקנון תחוייב בדמי ביטול בגובה 5% מסך ההזמנה, שהם " + fee + "₪";
+    }
+
+    if (confirm(confirmMessage)) {
+        document.getElementById('cancel-form-' + resCode).submit();
+    }
+    return false;
+}
+</script>
+
+{% if reservations and reservations|length > 0 %}
+  <div class="tickets-grid">
+    {% for r in reservations %}
+      <div class="ticket-card">
+
+        <div class="ticket-row">
+          <strong>קו טיסה:</strong>
+          {{ r.origin_airport }} → {{ r.destination_airport }}
+        </div>
+
+        <div class="ticket-row">
+          <strong>מספר טיסה:</strong> {{ r.flight_number }}
+        </div>
+
+        <div class="ticket-row">
+          <strong>קוד הזמנה:</strong> {{ r.reservation_code }}
+        </div>
+
+        <div class="ticket-row">
+          <strong>סטטוס:</strong> {{ r.reservations_status }}
+        </div>
+
+        <div class="ticket-row">
+          <strong>המראה:</strong> {{ r.departure_datetime }}
+        </div>
+
+        <div class="ticket-row">
+          <strong>תשלום כולל:</strong> {{ r.total_payment }}₪
+        </div>
+
+        {% if r.reservations_status == 'ACTIVE' %}
+          <form method="POST" action="{{ url_for('cancel_reservation_post') }}"
+                id="cancel-form-{{ r.reservation_code }}" class="cancel-form">
+
+            <input type="hidden" name="reservation_code" value="{{ r.reservation_code }}">
+            <input type="hidden" name="email" value="{{ email }}">
+
+            <button type="button" class="btn-danger"
+                    onclick="handleCancel('{{ r.reservation_code }}', '{{ r.is_urgent }}', '{{ r.cancellation_fee }}')">
+              ביטול הזמנה
+            </button>
+          </form>
+        {% else %}
+          <p class="info-text">הזמנה זו אינה פעילה ולכן לא ניתנת לביטול.</p>
+        {% endif %}
+      </div>
+    {% endfor %}
+  </div>
+{% else %}
+  <p class="info-text">לא נמצאו הזמנות פעילות עבור הפרטים שהוזנו.</p>
+{% endif %}
+
+{% endblock %}

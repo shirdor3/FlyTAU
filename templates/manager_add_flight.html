@@ -1,0 +1,53 @@
+{% extends "layout_page.html" %}
+{% block title %}FLYTAU{% endblock %}
+{% block page_title %}הוספת טיסה{% endblock %}
+
+{% block ruler %}
+<ul class="nav-links">
+    <li><a href="/add_crew" class="white-glow-hover">הוספת אנשי צוות</a></li>
+    <li><a href="/manager_buy_aircraft" class="white-glow-hover">הוספת מטוס</a></li>
+    <li><a href="/manager_add_flight" class="white-glow-hover">הוספת טיסה</a></li>
+    <li><a href="/cancel_flight_manager" class="white-glow-hover">הצגת טיסות</a></li>
+    <li><a href="/manager_reports" class="white-glow-hover">סטטיסטיקה ודוחות</a></li>
+</ul>
+{% endblock %}
+
+{% block content %}
+
+{% if message %}<p class="success-text">{{ message }}</p>{% endif %}
+{% if error %}<p class="error-text">{{ error }}</p>{% endif %}
+
+<form method="POST" action="{{ url_for('manager_add_flight') }}" class="card form">
+  <label>שדה מקור</label>
+  <select name="origin_airport" required>
+    <option value="">בחר מקור</option>
+    {% for a in airports %}
+      <option value="{{ a }}" {% if origin_selected == a %}selected{% endif %}>{{ a }}</option>
+    {% endfor %}
+  </select>
+
+  <label>שדה יעד</label>
+  <select name="destination_airport" required>
+    <option value="">בחר יעד</option>
+    {% for a in airports %}
+      <option value="{{ a }}" {% if destination_selected == a %}selected{% endif %}>{{ a }}</option>
+    {% endfor %}
+  </select>
+
+  <label>בחירת גודל מטוס</label>
+  <select name="aircraft_size" required>
+    <option value="">בחר גודל</option>
+    <option value="SMALL" {% if aircraft_size_selected == "SMALL" %}selected{% endif %}>SMALL</option>
+    <option value="LARGE" {% if aircraft_size_selected == "LARGE" %}selected{% endif %}>LARGE</option>
+  </select>
+
+  <label>תאריך המראה</label>
+  <input type="date" name="departure_date" required value="{{ departure_date or '' }}">
+
+  <label>שעת המראה</label>
+  <input type="time" name="departure_time" required value="{{ departure_time or '' }}">
+
+  <button class="btn-primary" type="submit">המשך לבחירת מטוס וצוות</button>
+</form>
+
+{% endblock %}

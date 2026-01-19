@@ -1,0 +1,73 @@
+{% extends "layout_page.html" %}
+
+{% block ruler %}
+<ul class="nav-links">
+  <li>
+    <a href="/flight_search_customers" class="white-glow-hover">חיפוש טיסה וביצוע הזמנה</a>
+  </li>
+  <li>
+    <a href="/history" class="white-glow-hover">היסטוריית הזמנות</a>
+  </li>
+</ul>
+{% endblock %}
+
+{% block title %}FLYTAU{% endblock %}
+{% block page_title %}
+<div class="page-head">
+  <h1>סיכום הזמנה</h1>
+  <h2 style="font-size:20px; font-weight:400; opacity:0.9;">
+    טיסה {{ flight.flight_number }} | {{ flight.origin_airport }} → {{ flight.destination_airport }} | {{ flight.departure_datetime }}
+  </h2>
+</div>
+{% endblock %}
+{% block content %}
+{% if error %}
+<section class="card" style="border:1px solid rgba(255,107,107,0.8);">
+  <div style="padding:12px; color:white;">
+    ❌ {{ error }}
+  </div>
+</section>
+{% endif %}
+<section class="card">
+  <div class="card-header">
+    <h2>המושבים שבחרת</h2>
+  </div>
+  <div class="table-wrap">
+    <table class="flights-table">
+      <thead>
+        <tr>
+          <th>מחלקה</th>
+          <th>שורה</th>
+          <th>טור</th>
+          <th>מחיר</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for s in seats %}
+        <tr>
+          <td>{{ s.class_type }}</td>
+          <td>{{ s.row_number }}</td>
+          <td>{{ s.column_number }}</td>
+          <td>{{ "%.2f"|format(s.price) }} ₪</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <div style="margin-top:14px; font-size:20px; font-weight:800; color:white;">
+    סך הכל לתשלום: {{ "%.2f"|format(total) }} ₪
+  </div>
+</section>
+
+    <div style="margin-top:14px; display:flex; gap:10px; flex-wrap:wrap;">
+      <a class="btn secondary" href="{{ url_for('flight_search_customers') }}">
+        חזרה לבחירת טיסה
+      </a>
+
+      <a class="btn primary" href="{{ url_for('place_order_customer') }}">
+       המשך כדי לאשר את פרטייך האישיים השמורים במערכת
+      </a>
+    </div>
+  </div>
+</section>
+{% endblock %}

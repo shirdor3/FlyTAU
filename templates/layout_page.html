@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <title>{% block title %}FLYTAU{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+
+<body class="flytau-body">
+
+  <div class="video-background">
+    <video playsinline autoplay muted loop poster="{{ url_for('static', filename='clouds_pic.jpg') }}">
+      <source src="{{ url_for('static', filename='clouds_background.mp4') }}" type="video/mp4">
+    </video>
+  </div>
+
+  <header class="site-header">
+    <nav class="main-nav">
+      <a href="/" class="logo-link">
+        <img src="{{ url_for('static', filename='LOGO.png') }}" alt="FLYTAU" class="logo-img">
+      </a>
+  {% block ruler%} {% endblock %}
+    </nav>
+  </header>
+
+
+  <main class="content-overlay">
+
+    <h1 class="page-title">
+      {% block page_title %}{% endblock %}
+    </h1>
+
+    <section class="page-content">
+      {% block content %}
+      {% endblock %}
+    </section>
+
+  </main>
+
+</body>
+</html>

@@ -1,0 +1,50 @@
+{# templates/sign_in_show_tickets.html #}
+{% extends "layout_page.html" %}
+
+{% block ruler %}
+<ul class="nav-links">
+  <li>
+    <a href="/flight_search_guest" class="white-glow-hover">חיפוש טיסה וביצוע הזמנה</a>
+  </li>
+  <li>
+    <a href="/sign_in_show_tickets" class="white-glow-hover">הצגת כרטיסים פעילים</a>
+  </li>
+</ul>
+{% endblock %}
+
+{% block title %}FLYTAU{% endblock %}
+{% block page_title %}הצגת כרטיסים פעילים{% endblock %}
+
+{% block content %}
+<div class="card">
+  <form method="POST" action="{{ url_for('sign_in_show_tickets') }}" class="form">
+    <label for="reservation_code">קוד הזמנה</label>
+    <input
+      id="reservation_code"
+      name="reservation_code"
+       type="number"
+       required
+       min="1"
+       step="1"
+      placeholder="לדוגמה: 16042001"
+    >
+
+    <label for="email">אימייל</label>
+    <input
+      id="email"
+      name="email"
+      type="email"
+      required
+      maxlength="120"
+      autocomplete="email"
+      placeholder="name@example.com"
+    >
+
+    <button type="submit" class="btn-primary">הצג הזמנות פעילות</button>
+  </form>
+
+  {% if error %}
+    <p class="error-text">{{ error }}</p>
+  {% endif %}
+</div>
+{% endblock %}

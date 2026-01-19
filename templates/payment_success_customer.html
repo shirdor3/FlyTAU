@@ -1,0 +1,140 @@
+{% extends "layout_page.html" %}
+{% block title %}FLYTAU - Order Complete{% endblock %}
+
+{% block ruler %}
+<ul class="nav-links">
+  <li>
+    <a href="/flight_search_customers" class="white-glow-hover">חיפוש טיסה וביצוע הזמנה</a>
+  </li>
+  <li>
+    <a href="/history" class="white-glow-hover">היסטוריית הזמנות</a>
+  </li>
+</ul>
+{% endblock %}
+
+
+{% block page_title %}
+<div class="page-head">
+  <h1>ההזמנה הושלמה 🎉</h1>
+  <h2 style="font-size:16px; font-weight:400; opacity:0.9;">תודה שבחרתם לטוס עם FLY TAU</h2>
+</div>
+{% endblock %}
+
+{% block content %}
+<section class="card" style="text-align:center; overflow:hidden; position:relative;">
+  <!-- שכבת קונפטי -->
+  <canvas id="confettiCanvas"
+          style="position:absolute; inset:0; width:100%; height:100%; pointer-events:none;"></canvas>
+
+  <div style="padding:16px; position:relative; z-index:1;">
+    <div style="font-size:22px; font-weight:900; color:white;">ההזמנה בוצעה בהצלחה ✅</div>
+
+    {% if reservation_code %}
+      <div style="margin-top:10px; font-size:18px; color:white;">
+        קוד הזמנה: <span style="font-weight:900;">{{ reservation_code }}</span>
+      </div>
+    {% endif %}
+
+    <div style="margin-top:14px; color:white;">מאחלים לך טיול מושלם! 🌍✨</div>
+
+    <div style="margin-top:18px; text-align:center; font-size:28px; line-height:1.4;">
+      🧳 🗼 🎡 🗽 🏙 🏛<br/>
+    </div>
+
+    <div class="actions" style="margin-top:20px; justify-content:center;">
+      <a class="btn primary" href="{{ url_for('flight_search_customers') }}">לחיפוש טיסה נוספת</a>
+      <a class="btn ghost" href="{{ url_for('homepage') }}">לדף הבית</a>
+    </div>
+  </div>
+</section>
+
+<script>
+(function () {
+  const canvas = document.getElementById("confettiCanvas");
+  if (!canvas) return;
+
+  const ctx = canvas.getContext("2d");
+
+  function resize() {
+    const rect = canvas.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = Math.floor(rect.width * dpr);
+    canvas.height = Math.floor(rect.height * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+
+  function W() { return canvas.getBoundingClientRect().width; }
+  function H() { return canvas.getBoundingClientRect().height; }
+
+  resize();
+  window.addEventListener("resize", resize);
+
+  const colors = ["#ffffff", "#ffd166", "#06d6a0", "#118ab2", "#ef476f", "#cdb4db"];
+
+  const pieces = Array.from({ length: 160 }).map(() => ({
+    x: Math.random() * W(),
+    y: -20 - Math.random() * H(),
+    w: 6 + Math.random() * 6,
+    h: 8 + Math.random() * 10,
+    r: Math.random() * Math.PI,
+    vr: (Math.random() - 0.5) * 0.25,
+    vx: (Math.random() - 0.5) * 1.2,
+    vy: 2 + Math.random() * 3,
+    c: colors[Math.floor(Math.random() * colors.length)],
+    a: 0.7 + Math.random() * 0.3
+  }));
+
+  let running = true;
+  let rafId = null;
+  let last = performance.now();
+
+  function tick(t) {
+    if (!running) return;
+
+    const dt = Math.min(32, t - last);
+    last = t;
+
+    ctx.clearRect(0, 0, W(), H());
+
+    for (const p of pieces) {
+      p.x += p.vx * (dt / 16);
+      p.y += p.vy * (dt / 16);
+      p.r += p.vr * (dt / 16);
+
+      p.vx += (Math.random() - 0.5) * 0.01;
+
+      if (p.y > H() + 30) {
+        p.y = -20;
+        p.x = Math.random() * W();
+      }
+      if (p.x < -30) p.x = W() + 30;
+      if (p.x > W() + 30) p.x = -30;
+
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.rotate(p.r);
+      ctx.globalAlpha = p.a;
+      ctx.fillStyle = p.c;
+      ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+      ctx.restore();
+    }
+
+    rafId = requestAnimationFrame(tick);
+  }
+
+  rafId = requestAnimationFrame(tick);
+
+  setTimeout(() => {
+    running = false;
+    if (rafId) cancelAnimationFrame(rafId);
+    window.removeEventListener("resize", resize);
+    ctx.clearRect(0, 0, W(), H());
+  }, 7000);
+
+  window.addEventListener("beforeunload", () => {
+    running = false;
+    if (rafId) cancelAnimationFrame(rafId);
+  });
+})();
+</script>
+{% endblock %}

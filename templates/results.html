@@ -1,0 +1,83 @@
+```html
+{# templates/results.html #}
+{% extends "layout_page.html" %}
+
+{% block ruler %}
+<ul class="nav-links">
+  <li>
+    <a href="/flight_search_guest" class="white-glow-hover">חיפוש טיסה וביצוע הזמנה</a>
+  </li>
+  <li>
+    <a href="/sign_in_show_tickets" class="white-glow-hover">הצגת כרטיסים פעילים</a>
+  </li>
+</ul>
+{% endblock %}
+
+{% block title %}RESULTS{% endblock %}
+
+{% block page_title %}
+<div class="page-head">
+  <h1>
+    תוצאות החיפוש שלך
+  </h1>
+</div>
+{% endblock %}
+
+{% block content %}
+
+<section class="card">
+  <div class="card-header">
+    <h2>תוצאות</h2>
+    <span class="hint">לחצו על "הזמנת מושבים" כדי להמשיך</span>
+  </div>
+
+  {% if flights and flights|length > 0 %}
+  <div class="table-wrap">
+    <table class="flights-table">
+      <thead>
+        <tr>
+          <th>מספר טיסה</th>
+          <th>תאריך ושעה</th>
+          <th>מקור</th>
+          <th>יעד</th>
+          <th>פעולה</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for f in flights %}
+        <tr>
+          <td>{{ f.flight_number }}</td>
+          <td>{{ f.departure_datetime }}</td>
+          <td>{{ f.origin_airport }}</td>
+          <td>{{ f.destination_airport }}</td>
+          <td>
+            <form method="POST" action="/select_seats" class="inline-form">
+              <input type="hidden" name="flight_number" value="{{ f.flight_number }}">
+              <button class="btn primary" type="submit">הזמנת מושבים</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+    <div class="empty">
+      <div class="empty-title">לא נמצאו טיסות</div>
+      <div class="empty-text">נסו לשנות תאריך/מקור/יעד ולחפש שוב</div>
+    </div>
+  {% endif %}
+</section>
+
+<section class="card">
+  <div class="card-header">
+    <h2>פעולות</h2>
+  </div>
+
+  <div class="actions">
+    <a class="btn secondary" href="/flight_search_guest">חזרה לחיפוש</a>
+  </div>
+</section>
+
+{% endblock %}
+

@@ -1,0 +1,109 @@
+{% extends "layout_page.html" %}
+
+{% block ruler %}
+<ul class="nav-links">
+    <li><a href="/add_crew" class="white-glow-hover">הוספת אנשי צוות</a></li>
+    <li><a href="/manager_buy_aircraft" class="white-glow-hover">הוספת מטוס</a></li>
+    <li><a href="/manager_add_flight" class="white-glow-hover">הוספת טיסה</a></li>
+    <li><a href="/cancel_flight_manager" class="white-glow-hover">הצגת טיסות</a></li>
+    <li><a href="/manager_reports" class="white-glow-hover">סטטיסטיקה ודוחות</a></li>
+</ul>
+{% endblock %}
+{% block page_title %}
+<div class="page-head">
+  <h1>דוחות ניהוליים</h1>
+  <h2 style="font-size:16px; font-weight:400; opacity:0.9;">
+    מערכת ניטור וניתוח לקבלת החלטות
+  </h2>
+</div>
+{% endblock %}
+
+{% block content %}
+
+<section class="card">
+  <div class="card-header">
+    <h2>בחירת דוח</h2>
+  </div>
+
+  <form method="GET" action="/manager_reports" class="search-grid" style="grid-template-columns: 1fr auto;">
+    <div class="field">
+      <label for="report"></label>
+      <select id="report" name="report" style="padding:10px 12px; border-radius:10px;">
+        <option value="1" {% if report_id == "1" %}selected{% endif %}>1) ממוצע נצילות טיסות שהתקיימו</option>
+        <option value="2" {% if report_id == "2" %}selected{% endif %}>2) הכנסות לפי גודל/יצרן/מחלקה</option>
+        <option value="3" {% if report_id == "3" %}selected{% endif %}>3) שעות טיסה מצטברות לעובדים</option>
+        <option value="4" {% if report_id == "4" %}selected{% endif %}>4) שיעור ביטולי רכישות לפי חודש</option>
+        <option value="5" {% if report_id == "5" %}selected{% endif %}>5) סיכום פעילות חודשית לכל מטוס</option>
+      </select>
+    </div>
+    <div class="actions">
+      <button class="btn primary" type="submit">הצג דוח</button>
+    </div>
+  </form>
+</section>
+
+<section class="card">
+  <div class="card-header">
+    <h2>{{ title }}</h2>
+  </div>
+
+  {% if report_id == "1" and table_rows and table_rows|length > 0 %}
+  <div style="
+      margin: 10px;
+      padding: 22px;
+      border-radius: 16px;
+      background: rgba(255,255,255,0.12);
+      border: 1px solid rgba(255,255,255,0.18);
+      text-align: center;
+  ">
+    <div style="font-size: 14px; opacity: 0.85; margin-bottom: 8px;">
+      Average occupancy (past flights)
+    </div>
+
+    <div style="font-size: 54px; font-weight: 800; letter-spacing: 1px;">
+      {{ table_rows[0]["value"] }}{{ table_rows[0]["unit"] }}
+    </div>
+
+    <div style="font-size: 13px; opacity: 0.75; margin-top: 8px;">
+      Based on completed flights
+    </div>
+  </div>
+
+{% elif img_path %}
+  <div style="padding:10px;">
+    <img src="{{ url_for('static', filename=img_path) }}" alt="Report Chart" style="max-width:100%; border-radius:14px;">
+  </div>
+{% endif %}
+
+</section>
+
+{% if report_id != "1" and table_rows and table_cols %}
+<section class="card">
+  <div class="card-header">
+    <h2>נתונים (Top 50)</h2>
+  </div>
+
+  <div class="table-wrap">
+    <table class="flights-table">
+      <thead>
+        <tr>
+          {% for c in table_cols %}
+            <th>{{ c }}</th>
+          {% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in table_rows %}
+          <tr>
+            {% for c in table_cols %}
+              <td>{{ r[c] }}</td>
+            {% endfor %}
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endif %}
+
+{% endblock %}

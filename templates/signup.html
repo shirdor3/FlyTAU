@@ -1,0 +1,122 @@
+{% extends "layout_page.html" %}
+
+{% block title %}FLYTAU - הרשמה{% endblock %}
+
+{% block page_title %}יצירת חשבון חדש ✈️{% endblock %}
+
+
+{% block content %}
+
+{% if message %}
+    <div class="message-banner {% if 'בהצלחה' in message %}success{% else %}error{% endif %}">
+        {{ message }}
+    </div>
+{% endif %}
+
+{% if message %}
+    <div class="alert-message">
+      {{ message }}
+    </div>
+  {% endif %}
+
+<form action="/signup" method="post" class="register-form">
+    <div class="form-group">
+        <label for="first_name">שם פרטי (אנגלית בלבד)</label>
+        <input
+            type="text"
+            id="first_name"
+            name="first_name"
+            pattern="[A-Za-z]+"
+            title="יש להזין אותיות באנגלית בלבד"
+            required>
+    </div>
+    <div class="form-group">
+        <label for="last_name">שם משפחה (אנגלית בלבד)</label>
+        <input
+            type="text"
+            id="last_name"
+            name="last_name"
+            pattern="[A-Za-z]+"
+            title="יש להזין אותיות באנגלית בלבד"
+            required>
+    </div>
+    <div class="form-group">
+        <label for="email">אימייל</label>
+        <input
+            type="email"
+            id="email"
+            name="email"
+            placeholder="example@mail.com"
+            required>
+    </div>
+    <div class="form-group">
+        <label for="phone_main">מספר טלפון</label>
+        <input
+            type="tel"
+            id="phone_main"
+            name="phone_main"
+            placeholder="05XXXXXXXX"
+            pattern="05[0-9]{8}"
+            title="מספר טלפון חייב להיות בפורמט 05XXXXXXXX"
+            required>
+    </div>
+
+    <div class="form-group">
+        <label>מספרי טלפון נוספים (אופציונלי)</label>
+
+        <div id="extra-phones"></div>
+
+        <button type="button" class="btn small-btn" onclick="addPhoneField()">
+            + הוסף מספר טלפון
+        </button>
+    </div>
+
+    <div class="form-group">
+        <label for="passport">מספר דרכון</label>
+        <input
+            type="text"
+            id="passport"
+            name="passport"
+            pattern="[A-Za-z0-9]{6,15}"
+            title="מספר דרכון יכול להכיל אותיות ומספרים בלבד"
+            required>
+    </div>
+
+    <div class="form-group">
+        <label for="birth_date">תאריך לידה</label>
+        <input
+            type="date"
+            id="birth_date"
+            name="birth_date"
+            required>
+    </div>
+
+    <div class="form-group">
+        <label for="password">סיסמה</label>
+        <input
+            type="password"
+            id="password"
+            name="password"
+            placeholder="********"
+            minlength="6"
+            required>
+    </div>
+
+    <button type="submit" class="btn login-btn">צור חשבון</button>
+
+</form>
+
+<script>
+function addPhoneField() {
+    const container = document.getElementById("extra-phones");
+    const input = document.createElement("input");
+    input.type = "tel";
+    input.name = "extra_phones[]";
+    input.placeholder = "05XXXXXXXX";
+    input.pattern = "05[0-9]{8}";
+    input.className = "extra-phone";
+    container.appendChild(input);
+}
+</script>
+
+{% endblock %}

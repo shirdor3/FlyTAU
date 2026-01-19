@@ -1,0 +1,182 @@
+{% extends "layout_page.html" %}
+
+{% block ruler %}
+<ul class="nav-links">
+  <li>
+    <a href="/flight_search_guest" class="white-glow-hover">חיפוש טיסה וביצוע הזמנה</a>
+  </li>
+  <li>
+    <a href="/sign_in_show_tickets" class="white-glow-hover">הצגת כרטיסים פעילים</a>
+  </li>
+</ul>
+{% endblock %}
+
+
+{% block title %}FLYTAU{% endblock %}
+
+{% block page_title %}
+<div class="page-head">
+  <h1>בחירת מושבים</h1>
+  <h2 style="font-size:18px; font-weight:400; opacity:0.9;">
+    טיסה {{ flight.flight_number }} | {{ flight.origin_airport }} → {{ flight.destination_airport }} | {{ flight.departure_datetime }}
+  </h2>
+</div>
+{% endblock %}
+
+{% block content %}
+
+{% if error %}
+  <section class="card" style="border:1px solid rgba(255,107,107,0.8);">
+    <div style="padding:12px; color:white;"> {{ error }}</div>
+  </section>
+{% endif %}
+
+{# יש כפתורי מחלקה רק אם קיימות גם ECONOMY וגם BUSINESS #}
+{% set class_types = classes | map(attribute='type') | list %}
+{% if 'ECONOMY' in class_types and 'BUSINESS' in class_types %}
+<section class="card">
+  <div class="card-header">
+    <h2>בחירת מחלקה</h2>
+  </div>
+
+  <div class="actions" style="gap:10px; display:flex; flex-wrap:wrap;">
+    <button type="button" class="btn ghost class-btn" data-class="ECONOMY">ECONOMY</button>
+    <button type="button" class="btn ghost class-btn" data-class="BUSINESS">BUSINESS</button>
+  </div>
+</section>
+{% endif %}
+
+<section class="card">
+  <div class="card-header">
+    <h2>מפת מושבים</h2>
+    <span class="hint" style="color:white; font-weight:700;">
+      Selected: <b id="selectedCount">0</b> | Total: <b id="totalPrice">0</b> ₪
+    </span>
+  </div>
+
+  {# לכל מחלקה יש seatmap נפרד. נציג/נסתיר ב-JS לפי בחירה #}
+  {% for class_type, seats in seats_by_class.items() %}
+  <div class="seatmap" data-class="{{ class_type }}" style="display:none;">
+
+    <div class="seats-grid">
+      {% for s in seats %}
+        {% set key = (s.aircraft_id_number, s.class_type, s.row_number, s.column_number) %}
+        {% set is_taken = key in taken %}
+
+        <button
+          type="button"
+          class="seat {% if is_taken %}taken{% else %}free{% endif %}"
+          data-aircraft="{{ s.aircraft_id_number }}"
+          data-class="{{ s.class_type }}"
+          data-row="{{ s.row_number }}"
+          data-col="{{ s.column_number }}"
+          data-price="{{ s.price }}"
+          {% if is_taken %}disabled{% endif %}
+        >
+          {{ s.row_number }}-{{ s.column_number }}
+        </button>
+      {% endfor %}
+    </div>
+
+  </div>
+  {% endfor %}
+
+</section>
+
+<section class="card">
+  <div class="card-header">
+    <h2>המשך</h2>
+  </div>
+
+  <form method="POST" action="/review_order">
+    <input type="hidden" name="flight_number" value="{{ flight.flight_number }}">
+    <input type="hidden" name="selected_seats_json" id="selectedSeatsJson" value="[]">
+
+    <div class="actions" style="display:flex; gap:10px; flex-wrap:wrap;">
+      <button class="btn primary" id="continueBtn" type="submit" disabled>
+        המשך להשלמת ההזמנה
+      </button>
+      <a class="btn ghost" href="/flight_search_guest">חזרה לחיפוש</a>
+    </div>
+  </form>
+</section>
+
+<script>
+  const seatmaps = document.querySelectorAll(".seatmap");
+  const classBtns = document.querySelectorAll(".class-btn");
+  const selectedCountEl = document.getElementById("selectedCount");
+  const totalPriceEl = document.getElementById("totalPrice");
+  const selectedSeatsJsonEl = document.getElementById("selectedSeatsJson");
+  const continueBtn = document.getElementById("continueBtn");
+  const summaryText = document.getElementById("summaryText");
+
+  let selected = []; // [{aircraft_id_number, class_type, row_number, column_number, price}]
+
+  function showClass(cls) {
+    seatmaps.forEach(m => m.style.display = (m.dataset.class === cls ? "block" : "none"));
+    classBtns.forEach(b => b.classList.toggle("primary", b.dataset.class === cls));
+  }
+
+  // ברירת מחדל: ECONOMY אם קיים, אחרת המחלקה הראשונה שקיימת
+  const allClasses = Array.from(seatmaps).map(m => m.dataset.class);
+  const defaultClass = allClasses.includes("ECONOMY") ? "ECONOMY" : (allClasses[0] || "");
+  if (defaultClass) showClass(defaultClass);
+
+  classBtns.forEach(btn => {
+    btn.addEventListener("click", () => showClass(btn.dataset.class));
+  });
+
+  function refreshTotals() {
+    selectedCountEl.textContent = selected.length;
+
+    const total = selected.reduce((sum, s) => sum + (Number(s.price) || 0), 0);
+    totalPriceEl.textContent = total.toFixed(2);
+
+    selectedSeatsJsonEl.value = JSON.stringify(selected.map(s => ({
+      aircraft_id_number: Number(s.aircraft_id_number),
+      class_type: s.class_type,
+      row_number: Number(s.row_number),
+      column_number: Number(s.column_number)
+    })));
+
+    const ok = selected.length > 0;
+    continueBtn.disabled = !ok;
+  }
+
+  document.querySelectorAll(".seat.free, .seat.selected").forEach(btn => {
+    if (btn.classList.contains("taken")) return;
+
+    btn.addEventListener("click", () => {
+      const seat = {
+        aircraft_id_number: btn.dataset.aircraft,
+        class_type: btn.dataset.class,
+        row_number: btn.dataset.row,
+        column_number: btn.dataset.col,
+        price: btn.dataset.price
+      };
+
+      const idx = selected.findIndex(s =>
+        s.aircraft_id_number === seat.aircraft_id_number &&
+        s.class_type === seat.class_type &&
+        s.row_number === seat.row_number &&
+        s.column_number === seat.column_number
+      );
+
+      if (idx >= 0) {
+        selected.splice(idx, 1);
+        btn.classList.remove("selected");
+        btn.classList.add("free");
+      } else {
+        selected.push(seat);
+        btn.classList.remove("free");
+        btn.classList.add("selected");
+      }
+
+      refreshTotals();
+    });
+  });
+
+  refreshTotals();
+</script>
+
+{% endblock %}

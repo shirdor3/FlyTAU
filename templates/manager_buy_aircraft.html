@@ -1,0 +1,149 @@
+{% extends "layout_page.html" %}
+
+{% block title %}רכישת מטוס{% endblock %}
+{% block ruler %}
+<ul class="nav-links">
+    <li><a href="/add_crew" class="white-glow-hover">הוספת אנשי צוות</a></li>
+    <li><a href="/manager_buy_aircraft" class="white-glow-hover">הוספת מטוס</a></li>
+    <li><a href="/manager_add_flight" class="white-glow-hover">הוספת טיסה</a></li>
+    <li><a href="/cancel_flight_manager" class="white-glow-hover">הצגת טיסות</a></li>
+    <li><a href="/manager_reports" class="white-glow-hover">סטטיסטיקה ודוחות</a></li>
+</ul>
+{% endblock %}
+
+
+{% block page_title %}
+<div class="page-head">
+  <h1>רכישת מטוס</h1>
+</div>
+{% endblock %}
+
+{% block content %}
+
+{% if error %}
+  <section class="card" style="border:1px solid rgba(255,107,107,0.8);">
+    <div style="padding:12px; color:white;">{{ error }}</div>
+  </section>
+{% endif %}
+
+{% if message %}
+  <section class="card" style="border:1px solid rgba(80,220,140,0.8);">
+    <div style="padding:12px; color:white;">{{ message }}</div>
+  </section>
+{% endif %}
+
+<section class="card">
+  <div class="card-header">
+    <h2>פרטי רכישה</h2>
+  </div>
+
+  {% if step == 1 %}
+  <form method="POST" action="/manager_buy_aircraft">
+    <input type="hidden" name="step" value="1">
+
+    <label style="color:white; font-weight:700;">
+      יצרן
+      <select name="manufacturer" class="input" required>
+        <option value="" disabled {% if not selected_manufacturer %}selected{% endif %}>בחר יצרן</option>
+        {% for m in manufacturers %}
+          <option value="{{ m }}" {% if selected_manufacturer == m %}selected{% endif %}>{{ m }}</option>
+        {% endfor %}
+      </select>
+    </label>
+
+    <label style="color:white; font-weight:700;">
+      גודל
+      <select name="size" class="input" required>
+        <option value="" disabled {% if not selected_size %}selected{% endif %}>בחר גודל</option>
+        {% for s in sizes %}
+          <option value="{{ s }}" {% if selected_size == s %}selected{% endif %}>{{ s }}</option>
+        {% endfor %}
+      </select>
+    </label>
+
+    <div class="actions" style="display:flex; gap:10px; flex-wrap:wrap; margin-top:10px;">
+      <button class="btn primary" type="submit">המשך</button>
+      <a class="btn ghost" href="/manager_home">חזרה</a>
+    </div>
+
+    <div style="color:white; opacity:0.85; font-size:14px; margin-top:8px;">
+      תאריך הרכישה נשמר אוטומטית לפי התאריך הנוכחי
+    </div>
+  </form>
+  {% endif %}
+
+  {% if step == 2 %}
+  <form method="POST" action="/manager_buy_aircraft">
+    <input type="hidden" name="step" value="2">
+    <input type="hidden" name="manufacturer" value="{{ selected_manufacturer }}">
+    <input type="hidden" name="size" value="{{ selected_size }}">
+
+    <div style="color:white; font-weight:700; margin-bottom:8px;">
+      יצרן: {{ selected_manufacturer }} | גודל: {{ selected_size }}
+    </div>
+
+    {% if selected_size == "LARGE" %}
+      <div class="card" style="margin-top:12px;">
+        <div class="card-header">
+          <h2>מחלקת תיירים (ECONOMY)</h2>
+        </div>
+
+        <div class="form-group">
+          <label for="econ_rows">מספר שורות</label>
+          <input type="number" id="econ_rows" name="econ_rows" min="1" required>
+        </div>
+
+        <div class="form-group">
+          <label for="econ_cols">מספר טורים</label>
+          <input type="number" id="econ_cols" name="econ_cols" min="1" required>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:12px;">
+        <div class="card-header">
+          <h2>מחלקת עסקים (BUSINESS)</h2>
+        </div>
+
+        <div class="form-group">
+          <label for="bus_rows">מספר שורות</label>
+          <input type="number" id="bus_rows" name="bus_rows" min="1" required>
+        </div>
+
+        <div class="form-group">
+          <label for="bus_cols">מספר טורים</label>
+          <input type="number" id="bus_cols" name="bus_cols" min="1" required>
+        </div>
+      </div>
+
+    {% elif selected_size == "SMALL" %}
+      <div class="card" style="margin-top:12px;">
+        <div class="card-header">
+          <h2>מחלקת תיירים (ECONOMY)</h2>
+        </div>
+
+        <div class="form-group">
+          <label for="econ_rows">מספר שורות</label>
+          <input type="number" id="econ_rows" name="econ_rows" min="1" required>
+        </div>
+
+        <div class="form-group">
+          <label for="econ_cols">מספר טורים</label>
+          <input type="number" id="econ_cols" name="econ_cols" min="1" required>
+        </div>
+      </div>
+    {% endif %}
+
+    <div class="actions" style="display:flex; gap:10px; flex-wrap:wrap; margin-top:14px;">
+      <button class="btn primary" type="submit">רכישת מטוס</button>
+      <a class="btn ghost" href="/manager_buy_aircraft">חזרה לשלב 1</a>
+    </div>
+
+    <div style="color:white; opacity:0.85; font-size:14px; margin-top:8px;">
+      תאריך הרכישה נשמר אוטומטית לפי התאריך הנוכחי
+    </div>
+  </form>
+  {% endif %}
+
+</section>
+
+{% endblock %}

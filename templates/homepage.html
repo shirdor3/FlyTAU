@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>homepage</title>
+    <link rel="stylesheet" type="text/css" href="{{url_for('static',filename='styles.css')}}">
+</head>
+<body>
+<div class="video-background">
+   <video playsinline autoplay muted loop poster="{{ url_for('static', filename='clouds_pic.jpg') }}">
+    <source src="{{ url_for('static', filename='clouds_background.mp4') }}" type="video/mp4">
+    </video>
+</div>
+
+<a href="/login_managers" class="btn secondary-btn">כניסת מנהלים</a>
+
+<div class="special_header">
+    <h1>Welcome to FLYTAU</h1>
+
+    <div class="cta-container">
+        <div class="cta-block">
+            <div class="cta-label">לקוח חדש</div>
+            <a href="/signup" class="btn secondary-btn">לחץ כאן להרשמה</a>
+        </div>
+
+       <div class="cta-block">
+    <div class="cta-label">לקוח קיים</div>
+    <a href="/login" class="btn secondary-btn">לחץ כאן להתחברות</a>
+    </div>
+    </div>
+    <div class="cta-block">
+    <div class="cta-label">כניסת אורחים</div>
+    <a href="/flight_search_guest" class="btn secondary-btn">לחץ כאן</a>
+    </div>
+    </div>
+</div>
+</body>
+</html>

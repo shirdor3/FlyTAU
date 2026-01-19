@@ -1,0 +1,44 @@
+{% extends "layout_page.html" %}
+
+{% block ruler %}
+<ul class="nav-links">
+  <li>
+    <a href="/flight_search_customers" class="white-glow-hover">חיפוש טיסה וביצוע הזמנה</a>
+  </li>
+  <li>
+    <a href="/history" class="white-glow-hover">היסטוריית הזמנות</a>
+  </li>
+</ul>
+{% endblock %}
+
+{% block title %}FLYTAU - Place Order{% endblock %}
+{% block page_title %}פרטי הלקוח השמורים במערכת{% endblock %}
+
+{% block content %}
+<section class="card">
+  <div class="card-header">
+  </div>
+
+  <div style="padding:14px; line-height:1.9;">
+    <div><b>שם פרטי:</b> {{ profile.first_name }}</div>
+    <div><b>שם משפחה:</b> {{ profile.last_name }}</div>
+    <div><b>אימייל:</b> {{ profile.email }}</div>
+
+    <div><b>טלפונים:</b>
+      {% if profile.phones %}
+        {{ profile.phones | join(", ") }}
+      {% else %}
+        אין טלפונים שמורים
+      {% endif %}
+    </div>
+
+    <div style="margin-top:16px; display:flex; gap:10px; flex-wrap:wrap;">
+      <a class="btn secondary" href="{{ url_for('flight_search_customers') }}">ביטול</a>
+
+      <form method="POST" action="{{ url_for('place_order_customer_post') }}" style="margin:0;">
+        <button class="btn primary" type="submit">מעבר לתשלום</button>
+      </form>
+    </div>
+  </div>
+</section>
+{% endblock %}

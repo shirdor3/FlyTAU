@@ -1,0 +1,118 @@
+{# templates/flight_search_customers.html #}
+{% extends "layout_page.html" %}
+
+{% block ruler %}
+<ul class="nav-links">
+  <li>
+    <a href="/flight_search_customers" class="white-glow-hover">חיפוש טיסה וביצוע הזמנה</a>
+  </li>
+  <li>
+    <a href="/history" class="white-glow-hover">היסטוריית הזמנות</a>
+  </li>
+</ul>
+{% endblock %}
+
+{% block title %}FLYTAU - חיפוש טיסות{% endblock %}
+
+{% block page_title %}
+<div class="page-head" style="margin-bottom: 20px;">
+    <p style="font-size: 1rem; color: var(--muted); margin-bottom: 5px; direction: ltr">
+        <b class="underline-grow"> Welcome, {{ session['user_name'] }}</b>
+    </p>
+    <h1>אלו כל הטיסות שלנו!</h1>
+    <h2>תוכלו לחפש טיסה לפי מדינת יעד, מדינת מקור, ותאריך</h2>
+</div>
+{% endblock %}
+
+{% block content %}
+
+<section class="card">
+  <div class="card-header">
+    <h2>מסנני חיפוש</h2>
+  </div>
+
+  <form method="GET" action="/flight_search_customers" class="search-grid">
+    <div class="field">
+      <label for="departure_datetime">תאריך טיסה</label>
+      <input id="departure_datetime" name="departure_datetime" type="date"
+             value="{{ request.args.get('departure_datetime','') }}"
+             required>
+    </div>
+
+    <div class="field">
+      <label for="origin_country">מדינת מקור</label>
+      <input id="origin_country" name="origin_country" type="text"
+             placeholder="למשל: Israel"
+             value="{{ request.args.get('origin_country','') }}"
+             required>
+    </div>
+
+    <div class="field">
+      <label for="destination_country">מדינת יעד</label>
+      <input id="destination_country" name="destination_country" type="text"
+             placeholder="למשל: Greece"
+             value="{{ request.args.get('destination_country','') }}"
+      required>
+    </div>
+
+    <div class="actions">
+      <button class="btn primary" type="submit">חפש טיסות</button>
+      <a class="btn ghost" href="/flight_search_customers">נקה הכל</a>
+    </div>
+  </form>
+</section>
+
+<section class="card">
+  <div class="card-header">
+    <h2>לוח טיסות זמינות</h2>
+    <span class="hint">לחצו על "בחירת מושבים" כדי להמשיך</span>
+  </div>
+
+  {% if flights and flights|length > 0 %}
+ <div class="table-wrap">
+  <table class="flights-table">
+    <thead>
+      <tr>
+        <th>תאריך ושעה</th>
+        <th>מקור (נמל ומדינה)</th>
+        <th>יעד (נמל ומדינה)</th>
+        <th>פעולה</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for f in flights %}
+      <tr>
+        <td>{{ f.departure_datetime }}</td>
+        <td>
+          <b>{{ f.origin_airport }}</b><br>
+          <small>{{ f.origin_country }}</small>
+        </td>
+        <td>
+          <b>{{ f.destination_airport }}</b><br>
+          <small>{{ f.destination_country }}</small>
+        </td>
+        <td>
+          <form method="POST" action="/select_seats_customer" class="inline-form">
+            <input type="hidden" name="flight_number" value="{{ f.flight_number }}">
+            <button class="btn secondary" type="submit">בחירת מושבים</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+  {% elif searched %}
+    <div class="empty">
+      <div class="empty-title">לא נמצאו טיסות תואמות</div>
+      <div class="empty-text">נסו לשנות את התאריך או את יעד הטיסה</div>
+    </div>
+  {% else %}
+    <div class="empty" style="border: 1px dashed var(--line);">
+      <div class="empty-title">מוכנים להמריא?</div>
+      <div class="empty-text">הזינו פרטי חיפוש כדי לראות את הטיסות הזמינות שלנו</div>
+    </div>
+  {% endif %}
+</section>
+
+{% endblock %}
