@@ -13,7 +13,6 @@ def db_conn():
             DB_PATH,
             check_same_thread=False
         )
-        # isolation_level = None turns on autocommit mode (similar to some MySQL setups)
         mydb.isolation_level = None
         mydb.row_factory = sqlite3.Row
         cursor = mydb.cursor()
@@ -266,8 +265,6 @@ ORDER BY a.aircraft_id_number;
         ))
         return cur.fetchall()
 
-
-
 def required_crew_counts(aircraft_size: str):
     size = (aircraft_size or "").upper()
     if size == "LARGE":
@@ -420,7 +417,6 @@ def get_aircraft_classes(aircraft_id_number: int):
     with db_conn() as cur:
         cur.execute(sql, (aircraft_id_number,))
         return [r["type"] for r in cur.fetchall()]
-
 
 
 def create_flight_with_crew_and_prices(
@@ -583,7 +579,6 @@ def signup_user(data):
         except Exception as e:
             print(f"Database error during signup: {e}")
             return False, "אירעה שגיאה בתהליך הרישום. ייתכן שאחד הפרטים אינו תקין."
-
 
 
 def get_flight_with_aircraft(flight_number: int):
@@ -893,7 +888,6 @@ def create_reservation_with_seats_with_customer_details(
         return reservation_code
 
 
-
 def crew_member_exists_in_any_table(id_number: int) -> bool:
     """
     בודק אם ת"ז כבר קיימת כאיש צוות או כמנהל
@@ -910,7 +904,6 @@ def crew_member_exists_in_any_table(id_number: int) -> bool:
     with db_conn() as cur:
         cur.execute(sql, (id_number, id_number, id_number))
         return cur.fetchone() is not None
-
 
 
 def create_pilot(

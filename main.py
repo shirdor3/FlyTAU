@@ -97,13 +97,10 @@ def history():
     with db_conn() as cur:
         cur.execute(query, params)
         orders = cur.fetchall()
-
-    # לוגיקת עיבוד הנתונים - כאן התיקון
     now = datetime.now()
     orders_list = []
     for o in orders:
         o = dict(o)
-        # 1. בדיקת זמנים
         if o['departure_datetime']:
             departure_datetime = datetime.strptime(o['departure_datetime'], '%Y-%m-%d %H:%M:%S')
             o['departure_datetime'] = departure_datetime
@@ -112,11 +109,7 @@ def history():
         else:
             o['is_urgent'] = False
 
-        # 2. חישוב דמי הביטול - וודאי שזה תואם לשם העמודה בשאילתה (למשל total_payment)
-        # השתמשי בשם המדויק שמופיע ב-SELECT שלך
         payment_value = o.get('total_payment') or o.get('total_price') or 0
-
-        # חישוב 5 אחוז ועיגול
         o['cancellation_fee'] = round(float(payment_value) * 0.05, 2)
         orders_list.append(o)
 
@@ -132,7 +125,6 @@ def cancel_reservation():
 
     if res_code:
         with db_conn() as cur:
-            # 1. שליפת נתוני הטיסה והמחיר
             cur.execute("""
                 SELECT f.departure_datetime, r.total_payment 
                 FROM reservations r
@@ -145,14 +137,9 @@ def cancel_reservation():
             if result:
                 original_price = result['total_payment']
                 now = datetime.now()
-
-                # 2. שחרור המושבים בטיסה
                 cur.execute("DELETE FROM seats_in_reservation WHERE reservation_code = ?", (res_code,))
-
-                # 3. עדכון הסטטוס והמחיר (לפי חוק ה-36 שעות)
                 flight_time = datetime.strptime(result['departure_datetime'], '%Y-%m-%d %H:%M:%S')
                 if flight_time > now + timedelta(hours=36):
-                    # חיוב של 5% בלבד
                     new_price = float(original_price) * 0.05
                     cur.execute("""
                         UPDATE reservations 
@@ -161,14 +148,11 @@ def cancel_reservation():
                         WHERE reservation_code = ?
                     """, (new_price, res_code))
                 else:
-                    # חיוב מלא (אין שינוי במחיר, רק בסטטוס) - הפסיק המיותר הוסר כאן
                     cur.execute("""
                         UPDATE reservations 
                         SET reservations_status = 'CUSTOMER_CANCELED'
                         WHERE reservation_code = ?
                     """, (res_code,))
-
-    # מחזיר את המשתמש ישירות לדף ההיסטוריה, שם הוא יראה את הסטטוס החדש בטבלה
     return redirect(url_for('history'))
 
 @app.route('/flight_search_customers', methods=["GET"])
@@ -430,7 +414,6 @@ def sign_in_show_tickets():
     email = (request.form.get("email") or "").strip().lower()
     reservation_code_raw = request.form.get("reservation_code")
 
-    # ... (ולידציות הקוד הקיימות שלך) ...
     try:
         reservation_code = int(reservation_code_raw)
     except:
@@ -438,12 +421,10 @@ def sign_in_show_tickets():
 
     reservations = get_active_reservations_for_guest(email, reservation_code)
 
-    # --- הוספת הלוגיקה עבור הודעות הביטול ---
     now = datetime.now()
     reservations_list = []
     for r in reservations:
         r = dict(r)
-        # בדיקה אם הטיסה דחופה (פחות מ-36 שעות)
         if r['departure_datetime']:
             datetime_object = datetime.strptime(r['departure_datetime'], '%Y-%m-%d %H:%M:%S')
             time_diff = datetime_object - now
@@ -497,7 +478,6 @@ def cancel_reservation_post():
 
 @app.route("/cancel_flight_manager", methods=["GET"])
 def update_flight_manager():
-    # אפשרויות: all / active_upcoming / full / past / canceled
     flt = (request.args.get("filter") or "all").strip().lower()
 
     flights = get_all_flights_with_hours_and_occupancy()
@@ -1049,11 +1029,7 @@ def review_order():
     seats_details = []
     total = 0.0
 
-    seats_details = []
-    total = 0.0
-
     for s in selected:
-        # פתיחת חיבור נפרד לכל מושב מבטיחה ניקוי של הצינור בסיום הבלוק
         with db_conn() as cur:
             cur.execute(
                 """
@@ -1098,8 +1074,6 @@ def place_order():
 
     pref_email = session.get("user_email")  # אם משתמש רשום מחובר
     return render_template("place_order.html", pref_email=pref_email)
-
-
 
 @app.route("/place_order_post", methods=["POST"])
 def place_order_post():
@@ -1157,7 +1131,6 @@ def place_order_customer():
     email = session["user_email"]
 
     with db_conn() as cur:
-        # שליפת פרטי הלקוח
         cur.execute("""
             SELECT email, first_name, last_name
             FROM customer
@@ -1165,7 +1138,6 @@ def place_order_customer():
         """, (email,))
         customer = cur.fetchone()
 
-        # שליפת הטלפונים וטיפול ב-0 שבתחילת המספר
         cur.execute("""
             SELECT phone_number
             FROM customer_phone_number
@@ -1177,7 +1149,6 @@ def place_order_customer():
         phones = []
         for r in raw_phones:
             p_str = str(r["phone_number"]).strip()
-            # הוספת 0 אם הוא חסר (כי ב-DB זה נשמר כמספר)
             if p_str and not p_str.startswith('0'):
                 p_str = '0' + p_str
             phones.append(p_str)
@@ -1192,7 +1163,6 @@ def place_order_customer():
         "phones": phones
     }
 
-    # שמירה ב-session לצורך המשך התהליך
     session["pending_customer"] = profile
 
     return render_template("place_order_customer.html", profile=profile)
@@ -1354,7 +1324,6 @@ def select_seats_customer():
 
 @app.route("/payment_guest", methods=["GET"])
 def payment():
-    # אורח חייב pending_customer (כי הוא מילא פרטים ב-place_order)
     if not session.get("pending_flight_number") or not session.get("pending_seats_json") or not session.get("pending_customer"):
         return redirect(url_for("flight_search_guest"))
 
@@ -1372,7 +1341,6 @@ def payment_post():
     if not flight_number or not seats_json or not cust:
         return redirect(url_for("flight_search_guest"))
 
-    # פרטי אשראי (לא נשמרים)
     card_name = (request.form.get("card_name") or "").strip()
     card_number = str(request.form.get("card_number") or "").strip().replace(" ", "")
     exp = (request.form.get("exp") or "").strip()
@@ -1401,7 +1369,6 @@ def payment_post():
     except Exception as e:
         return render_template("payment_guest.html", error=str(e), total=session.get("pending_total"), email=cust.get("email")), 409
 
-    # ניקוי session
     session.pop("pending_flight_number", None)
     session.pop("pending_seats_json", None)
     session.pop("pending_total", None)
@@ -1409,16 +1376,11 @@ def payment_post():
 
     return redirect(url_for("payment_success", reservation_code=reservation_code))
 
-
-# =========================
-# PAYMENT - CUSTOMER (REGISTERED)
-# =========================
 @app.route("/payment_customer", methods=["GET"])
 def payment_customer():
     if not session.get("user_email"):
         return redirect(url_for("login"))
 
-    # לקוח רשום: לא חייב pending_customer (כי הפרטים ב-DB)
     if not session.get("pending_flight_number") or not session.get("pending_seats_json"):
         return redirect(url_for("flight_search_customers"))
 
@@ -1440,7 +1402,6 @@ def payment_customer_post():
 
     email = session.get("user_email")
 
-    # מושכים פרטי לקוח מה-DB (לקוח רשום)
     with db_conn() as cur:
         cur.execute("""
             SELECT email, first_name, last_name
@@ -1469,7 +1430,6 @@ def payment_customer_post():
         "phones": phones
     }
 
-    # פרטי אשראי (לא נשמרים)
     card_name = (request.form.get("card_name") or "").strip()
     card_number = str(request.form.get("card_number") or "").strip().replace(" ", "")
     exp = (request.form.get("exp") or "").strip()
@@ -1526,16 +1486,12 @@ def payment_customer_post():
             email=email
         ), 409
 
-    # ניקוי session (ללקוח רשום אין pending_customer)
     session.pop("pending_flight_number", None)
     session.pop("pending_seats_json", None)
     session.pop("pending_total", None)
 
     return redirect(url_for("payment_success_customer", reservation_code=reservation_code))
 
-# =========================
-# PAYMENT SUCCESS - GUEST / CUSTOMER
-# =========================
 @app.route("/payment_success", methods=["GET"])
 def payment_success():
     reservation_code = request.args.get("reservation_code")
@@ -1552,7 +1508,6 @@ def manager_buy_aircraft():
     manufacturers = ["BOEING", "AIRBUS", "DASSAULT"]
     sizes = ["SMALL", "LARGE"]
 
-    # GET: שלב 1
     if request.method == "GET":
         return render_template(
             "manager_buy_aircraft.html",
@@ -1568,7 +1523,6 @@ def manager_buy_aircraft():
     manufacturer = (request.form.get("manufacturer") or "").strip().upper()
     size = (request.form.get("size") or "").strip().upper()
 
-    # ולידציה בסיסית
     if manufacturer not in manufacturers:
         return render_template(
             "manager_buy_aircraft.html",
@@ -1659,7 +1613,6 @@ def manager_buy_aircraft():
         selected_size="",
         message=f"המטוס נרכש ונוסף בהצלחה! מספר מטוס: {new_aircraft_id}"
     )
-
 
 if __name__ == '__main__':
     app.run(debug=True)

@@ -6,7 +6,6 @@ import matplotlib.pyplot as plt
 
 from utils import db_conn
 
-
 REPORTS_DIR = os.path.join(os.path.dirname(__file__), "static", "reports")
 os.makedirs(REPORTS_DIR, exist_ok=True)
 
@@ -18,13 +17,8 @@ def _query_df(sql: str, params=None) -> pd.DataFrame:
     with db_conn() as cur:
         cur.execute(sql, params)
         rows = cur.fetchall()
-
-        # Handle case where query returns no results
         if not rows:
             return pd.DataFrame()
-
-        # Extract column names from the cursor description
-        # This is required because simple pd.DataFrame(rows) won't get headers from sqlite3
         columns = [description[0] for description in cur.description]
 
     return pd.DataFrame(rows, columns=columns)
@@ -108,7 +102,6 @@ ORDER BY combos.aircraft_size, combos.aircraft_manufacturer, combos.class_type;
     return img, df
 
 
-
 def report_staff_hours():
     sql = """
     SELECT staff_id, first_name, last_name,
@@ -184,7 +177,6 @@ def report_staff_hours():
     })
 
     return img, table_df
-
 
 
 def report_cancellation_rate():
