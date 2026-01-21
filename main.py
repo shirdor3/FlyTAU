@@ -3,10 +3,10 @@ from flask_session import Session
 import json
 from datetime import datetime,timedelta
 from utils import (db_conn, get_active_reservations_for_guest, cancel_reservation_for_guest,
-                   get_all_flights_with_hours, cancel_flight_and_linked_reservations, get_route_destinations, get_flight_duration_minutes, is_long_flight,
+                   get_all_flights_with_hours, cancel_flight_and_linked_reservations, get_flight_duration_minutes, is_long_flight,
     get_available_aircraft, get_available_pilots, get_available_attendants,
     required_crew_counts, create_flight_with_crew_and_prices, generate_unique_flight_number, authenticate_user, signup_user, get_airport_countries, authenticate_manager, get_flight_with_aircraft,
-    get_classes_for_aircraft,
+    get_classes_for_aircraft, is_card_exp_valid,
     get_seats_for_flight_class,
     get_taken_seats_for_flight,
     create_reservation_with_seats, get_all_flights_with_hours_and_occupancy, get_all_airports, get_seats_for_aircraft_class, create_reservation_with_seats_with_customer_details, create_pilot, crew_member_exists_in_any_table,create_attendant,create_aircraft_with_classes_and_seats)
@@ -1406,6 +1406,15 @@ def payment_post(): #Validate payment details create guest reservation and clear
     if (not cvv.isdigit()) or (len(cvv) not in (3, 4)):
         return render_template("payment_guest.html", error="CVV לא תקין.", total=session.get("pending_total"), email=cust.get("email"))
 
+    ok, exp_err = is_card_exp_valid(exp)
+    if not ok:
+        return render_template(
+            "payment_guest.html",
+            error=exp_err,
+            total=session.get("pending_total"),
+            email=cust.get("email")
+        )
+
     selected = json.loads(seats_json)
 
     try:
@@ -1506,6 +1515,14 @@ def payment_customer_post(): #Validate customer payment details create reservati
         return render_template(
             "payment_customer.html",
             error="CVV לא תקין.",
+            total=session.get("pending_total"),
+            email=email
+        )
+    ok, exp_err = is_card_exp_valid(exp)
+    if not ok:
+        return render_template(
+            "payment_customer.html",
+            error=exp_err,
             total=session.get("pending_total"),
             email=email
         )

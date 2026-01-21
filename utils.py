@@ -162,25 +162,6 @@ def cancel_flight_and_linked_reservations(flight_number: int) -> dict:
 
         return {"ok": True, "flight_number": flight_number, "reservations_updated": reservations_updated}
 
-
-def get_route_origins(): #Return all possible origin airports from the flight routes table
-    sql = "SELECT DISTINCT origin_airport FROM flight_route ORDER BY origin_airport;"
-    with db_conn() as cur:
-        cur.execute(sql)
-        return [r["origin_airport"] for r in cur.fetchall()]
-
-
-def get_route_destinations(origin_airport: str): #Return all possible destination airports for a given origin airport
-    sql = """
-    SELECT destination_airport
-    FROM flight_route
-    WHERE origin_airport = ?
-    ORDER BY destination_airport;
-    """
-    with db_conn() as cur:
-        cur.execute(sql, (origin_airport,))
-        return [r["destination_airport"] for r in cur.fetchall()]
-
 #Get flight duration in minutes for a route or return None if route not found
 def get_flight_duration_minutes(origin_airport: str, destination_airport: str):
     sql = """
@@ -1004,5 +985,20 @@ def create_aircraft_with_classes_and_seats(
         if size == "LARGE":
             bus_seats = build_seats(new_id, "BUSINESS", int(bus_rows), int(bus_cols))
             cur.executemany(sql_seat, bus_seats)
-
     return new_id
+
+def is_card_exp_valid(exp: str): #Check if a credit card expiration date is valid
+    if not exp or len(exp) != 5 or exp[2] != "/":
+        return False, "תוקף לא תקין, יש להזין בפורמט MM/YY"
+    mm, yy = exp.split("/")
+    if (not mm.isdigit()) or (not yy.isdigit()):
+        return False, "תוקף לא תקין"
+    mm = int(mm)
+    yy = int(yy)
+    if not (1 <= mm <= 12):
+        return False, "חודש תוקף לא תקין"
+    year = 2000 + yy
+    today = date.today()
+    if (today.year > year) or (today.year == year and today.month > mm):
+        return False, "תוקף הכרטיס כבר עבר"
+    return True, None
