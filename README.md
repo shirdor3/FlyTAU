@@ -25,4 +25,4 @@ The system uses an SQLite database and server-side rendered HTML pages to handle
 1. Make sure Python is installed
 2. Install required packages:
    ```bash
-   pip install flask pandas matplotli
+   pip install flask pandas matplotlib
