@@ -31,11 +31,11 @@ Session(app)
 
 
 @app.route('/')
-def homepage():
+def homepage(): #Render the homepage template
     return render_template('homepage.html')
 
 @app.route('/login', methods=['GET', 'POST'])
-def login():
+def login(): #Customer login validate input authenticate set session and redirect
     if request.method == "POST":
         email = (request.form.get("email")).strip().lower()
         password = (request.form.get("password")).strip()
@@ -53,14 +53,11 @@ def login():
 
 
 @app.route('/history', methods=['GET'])
-def history():
+def history(): #Show the logged in customer's reservation history with optional status filtering
     if not session.get('user_email'):
         return redirect(url_for('login'))
-
     user_email = session['user_email']
     status_filter = request.args.get('status', 'all')
-
-    # הוספנו את r.total_price לשאילתה כדי לחשב 5%
     query = """
         SELECT 
             r.reservation_code, 
@@ -82,7 +79,6 @@ def history():
         WHERE r.email = ?
     """
     params = [user_email]
-
     if status_filter == 'active_future':
         query += " AND r.reservations_status = 'ACTIVE' AND f.departure_datetime >= datetime('now')"
     elif status_filter == 'completed':
@@ -116,7 +112,7 @@ def history():
     return render_template('history.html', orders=orders_list, current_filter=status_filter)
 
 @app.route('/cancel_reservation', methods=['POST'])
-def cancel_reservation():
+def cancel_reservation(): #Cancel a logged in customer's reservation and update payment based on time of cancellation
     if not session.get('user_email'):
         return redirect(url_for('login'))
 
@@ -156,7 +152,7 @@ def cancel_reservation():
     return redirect(url_for('history'))
 
 @app.route('/flight_search_customers', methods=["GET"])
-def flight_search_customers():
+def flight_search_customers(): #Search upcoming active flights for logged in customers optional filters by date/countries
     departure_date = (request.args.get("departure_datetime") or "").strip()
     origin_country = (request.args.get("origin_country") or "").strip()
     destination_country = (request.args.get("destination_country") or "").strip()
@@ -199,7 +195,7 @@ def flight_search_customers():
 
 
 @app.route('/signup', methods=['GET', 'POST'])
-def signup():
+def signup(): #Register a new customer account and start a logged in session
     if request.method == 'POST':
         user_data = {
             'first_name': request.form.get('first_name'),
@@ -221,15 +217,14 @@ def signup():
             return redirect('/flight_search_customers')
         else:
             return render_template('signup.html', message=message)
-
     return render_template('signup.html')
+
 @app.route('/flight_search_guest', methods=["GET"])
-def flight_search_guest():
+def flight_search_guest(): #Search upcoming active flights for guests and show available countries for filtering
     departure_date = (request.args.get("departure_datetime") or "").strip()
     origin_country = (request.args.get("origin_country") or "").strip()
     destination_country = (request.args.get("destination_country") or "").strip()
     searched = any([departure_date, origin_country, destination_country])
-
     query = """
         SELECT 
             f.flight_number, 
@@ -245,64 +240,50 @@ def flight_search_guest():
 
     """
     params = []
-
     if departure_date:
         query += " AND DATE(f.departure_datetime) = ?"
         params.append(departure_date)
-
     if origin_country:
         query += " AND a1.country LIKE ?"
         params.append(f"%{origin_country}%")
-
     if destination_country:
         query += " AND a2.country LIKE ?"
         params.append(f"%{destination_country}%")
-
     query += " ORDER BY f.departure_datetime"
-
     with db_conn() as cursor:
         cursor.execute(query, params)
         flights = cursor.fetchall()
 
-
     countries = get_airport_countries()
-
     return render_template('flight_search_guest.html',
                            flights=flights,
                            searched=searched,
                            countries=countries)
 
 @app.route('/results', methods=["GET"])
-def results():
+def results(): #Show flight search results by date and/or origin/destination airport
     departure_date = (request.args.get("departure_datetime") or "").strip()
     origin_airport = (request.args.get("origin_airport") or "").strip().upper()
     destination_airport = (request.args.get("destination_airport") or "").strip().upper()
-
     query = """
         SELECT flight_number, departure_datetime, origin_airport, destination_airport
         FROM flight
         WHERE departure_datetime >= CURRENT_DATE AND status = 'ACTIVE'
     """
     params = []
-
     if departure_date:
         query += " AND DATE(departure_datetime) = ?"
         params.append(departure_date)
-
     if origin_airport:
         query += " AND origin_airport = ?"
         params.append(origin_airport)
-
     if destination_airport:
         query += " AND destination_airport = ?"
         params.append(destination_airport)
-
     query += " ORDER BY departure_datetime"
-
     with db_conn() as cursor:
         cursor.execute(query, params)
         flights = cursor.fetchall()
-
     return render_template(
         "results.html",
         flights=flights,
@@ -312,19 +293,16 @@ def results():
     )
 
 @app.route('/login_managers', methods=['GET', 'POST'])
-def login_managers():
+def login_managers(): #Handle manager login validate ID and password set session and redirect
     if request.method == "POST":
         tz_raw = (request.form.get("tz") or "").strip()
         password = (request.form.get("password") or "").strip()
-
         try:
             tz = int(tz_raw)
         except ValueError:
             return render_template("login_managers.html", message="תעודת זהות לא תקינה")
-
         if not password:
             return render_template("login_managers.html", message="חובה להזין סיסמה")
-
         manager = authenticate_manager(tz, password)
         if manager:
             session['manager_id'] = manager['id_number']
@@ -335,10 +313,9 @@ def login_managers():
     return render_template('login_managers.html')
 
 @app.route("/add_crew", methods=["GET", "POST"])
-def add_crew():
+def add_crew(): #Add a new crew member pilot/attendant with validation and duplicate ID prevention
     if request.method == "GET":
         return render_template("add_crew.html")
-
     role = (request.form.get("role") or "").strip().lower()
     tz_raw = (request.form.get("tz") or "").strip()
     first_name = (request.form.get("first_name") or "").strip()
@@ -347,30 +324,20 @@ def add_crew():
     city = (request.form.get("city") or "").strip()
     street = (request.form.get("street") or "").strip()
     house_raw = (request.form.get("house_number") or "").strip()
-
     long_cert = 1 if request.form.get("long_flight_certification") == "1" else 0
-
     try:
         if role not in ("pilot", "attendant"):
             raise ValueError("חובה לבחור תפקיד (טייס/דייל).")
-
         if not tz_raw.isdigit():
             raise ValueError("תעודת זהות חייבת להכיל ספרות בלבד.")
         tz = int(tz_raw)
-
         if not phone_raw.isdigit():
             raise ValueError("טלפון חייב להכיל ספרות בלבד.")
         phone_number = int(phone_raw)
-
         house_number = int(house_raw)
-
-        # תאריך תחילת עבודה אוטומטי להיום (DATE)
         employment_start_date = datetime.today()
-
-        # מניעת כפילות ת"ז במערכת (טייס/דייל/מנהל)
         if crew_member_exists_in_any_table(tz):
             raise ValueError("כבר קיים עובד עם תעודת זהות זו במערכת.")
-
     except Exception as e:
         return render_template("add_crew.html", error=f"שגיאה בהוספת איש צוות: {e}")
 
@@ -399,15 +366,124 @@ def add_crew():
                 employment_start_date=employment_start_date,
                 long_flight_certification=long_cert
             )
-
         return render_template("add_crew.html", message="איש צוות נוסף בהצלחה ✅")
 
     except Exception as e:
         return render_template("add_crew.html", error=f"שגיאה בהוספת איש צוות: {e}")
 
+@app.route("/manager_buy_aircraft", methods=["GET", "POST"])
+def manager_buy_aircraft(): #Manager buy a new aircraft choose manufacturer and size then create seat layout
+    manufacturers = ["BOEING", "AIRBUS", "DASSAULT"]
+    sizes = ["SMALL", "LARGE"]
+
+    if request.method == "GET":
+        return render_template(
+            "manager_buy_aircraft.html",
+            manufacturers=manufacturers,
+            sizes=sizes,
+            step=1,
+            selected_manufacturer="",
+            selected_size=""
+        )
+
+    step = (request.form.get("step") or "1").strip()
+
+    manufacturer = (request.form.get("manufacturer") or "").strip().upper()
+    size = (request.form.get("size") or "").strip().upper()
+
+    if manufacturer not in manufacturers:
+        return render_template(
+            "manager_buy_aircraft.html",
+            manufacturers=manufacturers,
+            sizes=sizes,
+            step=1,
+            selected_manufacturer="",
+            selected_size="",
+            error="יצרן לא תקין."
+        )
+
+    if size not in sizes:
+        return render_template(
+            "manager_buy_aircraft.html",
+            manufacturers=manufacturers,
+            sizes=sizes,
+            step=1,
+            selected_manufacturer=manufacturer,
+            selected_size="",
+            error="גודל לא תקין."
+        )
+
+    if step == "1":
+        return render_template(
+            "manager_buy_aircraft.html",
+            manufacturers=manufacturers,
+            sizes=sizes,
+            step=2,
+            selected_manufacturer=manufacturer,
+            selected_size=size
+        )
+
+    purchase_date = datetime.today().date()
+
+    try:
+        econ_rows = int(request.form.get("econ_rows"))
+        econ_cols = int(request.form.get("econ_cols"))
+        if econ_rows < 1 or econ_cols < 1:
+            raise ValueError("ערכי ECONOMY חייבים להיות חיוביים.")
+
+        bus_rows = None
+        bus_cols = None
+        if size == "LARGE":
+            bus_rows = int(request.form.get("bus_rows"))
+            bus_cols = int(request.form.get("bus_cols"))
+            if bus_rows < 1 or bus_cols < 1:
+                raise ValueError("ערכי BUSINESS חייבים להיות חיוביים.")
+
+    except Exception as e:
+        return render_template(
+            "manager_buy_aircraft.html",
+            manufacturers=manufacturers,
+            sizes=sizes,
+            step=2,
+            selected_manufacturer=manufacturer,
+            selected_size=size,
+            error=f"נתוני מחלקות לא תקינים: {e}"
+        )
+
+    try:
+        new_aircraft_id = create_aircraft_with_classes_and_seats(
+            size=size,
+            manufacturer=manufacturer,
+            purchase_date=purchase_date,
+            econ_rows=econ_rows,
+            econ_cols=econ_cols,
+            bus_rows=bus_rows,
+            bus_cols=bus_cols
+        )
+
+    except Exception as e:
+        return render_template(
+            "manager_buy_aircraft.html",
+            manufacturers=manufacturers,
+            sizes=sizes,
+            step=2,
+            selected_manufacturer=manufacturer,
+            selected_size=size,
+            error=f"שגיאה בהוספת מטוס: {e}"
+        )
+
+    return render_template(
+        "manager_buy_aircraft.html",
+        manufacturers=manufacturers,
+        sizes=sizes,
+        step=1,
+        selected_manufacturer="",
+        selected_size="",
+        message=f"המטוס נרכש ונוסף בהצלחה! מספר מטוס: {new_aircraft_id}"
+    )
 
 @app.route("/sign_in_show_tickets", methods=["GET", "POST"])
-def sign_in_show_tickets():
+def sign_in_show_tickets(): #Let a guest enter email and reservation code and view active reservations
     if request.method == "GET":
         return render_template("sign_in_show_tickets.html")
 
@@ -420,7 +496,6 @@ def sign_in_show_tickets():
         return render_template("sign_in_show_tickets.html", error="קוד לא תקין")
 
     reservations = get_active_reservations_for_guest(email, reservation_code)
-
     now = datetime.now()
     reservations_list = []
     for r in reservations:
@@ -431,19 +506,16 @@ def sign_in_show_tickets():
             r['is_urgent'] = time_diff < timedelta(hours=36) and time_diff > timedelta(0)
         else:
             r['is_urgent'] = False
-
         payment_value = r.get('total_payment') or 0
         r['cancellation_fee'] = round(float(payment_value) * 0.05, 2)
         reservations_list.append(r)
-
     return render_template("tickets_results.html", reservations=reservations_list, email=email)
 
 
 @app.route("/cancel_reservation_post", methods=["POST"])
-def cancel_reservation_post():
+def cancel_reservation_post(): #Cancel a guest reservation using email and reservation code and show updated results
     email = (request.form.get("email") or "").strip().lower()
     reservation_code_raw = request.form.get("reservation_code")
-
     try:
         reservation_code = int(reservation_code_raw)
         if reservation_code <= 0:
@@ -461,7 +533,6 @@ def cancel_reservation_post():
                                error="אימייל לא תקין.")
 
     ok = cancel_reservation_for_guest(email, reservation_code)
-
     reservations = get_active_reservations_for_guest(email, reservation_code)
 
     if not ok:
@@ -477,7 +548,7 @@ def cancel_reservation_post():
 
 
 @app.route("/cancel_flight_manager", methods=["GET"])
-def update_flight_manager():
+def update_flight_manager(): #Show manager flight list with filters: upcoming, full, past, canceled
     flt = (request.args.get("filter") or "all").strip().lower()
 
     flights = get_all_flights_with_hours_and_occupancy()
@@ -494,7 +565,7 @@ def update_flight_manager():
     return render_template("cancel_flight_manager.html", flights=flights, selected_filter=flt)
 
 @app.route("/cancel_flight_post", methods=["POST"])
-def cancel_flight_post():
+def cancel_flight_post(): #Cancel a flight and update linked reservations
     flight_number_raw = request.form.get("flight_number")
 
     try:
@@ -506,7 +577,6 @@ def cancel_flight_post():
         return render_template("cancel_flight_manager.html", flights=flights, error="מספר טיסה לא תקין.")
 
     result = cancel_flight_and_linked_reservations(flight_number)
-
     flights = get_all_flights_with_hours()
 
     if not result["ok"]:
@@ -521,20 +591,13 @@ def cancel_flight_post():
     msg = f"הטיסה {flight_number} בוטלה. עודכנו {result['reservations_updated']} הזמנות פעילות ל-SYSTEM_CANCELED ואופס התשלום."
     return render_template("cancel_flight_manager.html", flights=flights, message=msg)
 
-@app.route("/api/destinations")
-def api_destinations():
-    origin = (request.args.get("origin") or "").strip().upper()
-    if not origin:
-        return jsonify([])
-    return jsonify(get_route_destinations(origin))
-
-
 @app.route("/manager_add_flight", methods=["GET", "POST"])
-def manager_add_flight():
+def manager_add_flight(): #Create a new flight with aircraft crew and prices
     airports = get_all_airports()
     if request.method == "GET":
         return render_template("manager_add_flight.html", airports=airports)
-    def render_step2(
+
+    def render_step2( #Helper render step 2 of the add flight flow with all needed data and messages
         *,
         origin: str,
         destination: str,
@@ -980,7 +1043,7 @@ def manager_add_flight():
 
 
 @app.route("/select_seats_guest", methods=["POST"])
-def select_seats():
+def select_seats(): #Show seat selection for a guest available seats per class and taken seats
     flight_number = int(request.form.get("flight_number"))
 
     flight = get_flight_with_aircraft(flight_number)
@@ -1006,7 +1069,7 @@ def select_seats():
 
 
 @app.route("/review_order", methods=["POST"])
-def review_order():
+def review_order(): #Create order summary validate seats calculate total and save pending order in session
     flight_number = int(request.form.get("flight_number"))
     seats_json = request.form.get("selected_seats_json") or "[]"
 
@@ -1019,13 +1082,11 @@ def review_order():
         return "לא נבחרו מושבים", 400
 
     flight = get_flight_with_aircraft(flight_number)
+
     if not flight:
         return "Flight not found", 404
 
     aircraft_id = flight["aircraft_id_number"]
-
-    taken = get_taken_seats_for_flight(flight_number)
-
     seats_details = []
     total = 0.0
 
@@ -1068,15 +1129,14 @@ def review_order():
     )
 
 @app.route("/place_order", methods=["GET"])
-def place_order():
+def place_order(): #Show guest checkout form prefill email if exists
     if not session.get("pending_flight_number") or not session.get("pending_seats_json"):
         return redirect("/flight_search_guest")
-
-    pref_email = session.get("user_email")  # אם משתמש רשום מחובר
+    pref_email = session.get("user_email")
     return render_template("place_order.html", pref_email=pref_email)
 
 @app.route("/place_order_post", methods=["POST"])
-def place_order_post():
+def place_order_post(): #Collect guest customer details and save them in session before payment
     flight_number = session.get("pending_flight_number")
     seats_json = session.get("pending_seats_json")
 
@@ -1110,18 +1170,16 @@ def place_order_post():
     return redirect(url_for("payment"))
 
 @app.route("/place_order_customer_post", methods=["POST"])
-def place_order_customer_post():
+def place_order_customer_post(): #Start customer checkout verify login and pending order then redirect to customer payment
     if not session.get("user_email"):
         return redirect(url_for("login"))
-
     if not session.get("pending_flight_number") or not session.get("pending_seats_json"):
         return redirect(url_for("flight_search_customers"))
-
     return redirect(url_for("payment_customer"))
 
 
 @app.route("/place_order_customer", methods=["GET"])
-def place_order_customer():
+def place_order_customer(): #Load logged in customer profile and open the customer order page
     if not session.get("user_email"):
         return redirect(url_for("login"))
 
@@ -1164,12 +1222,11 @@ def place_order_customer():
     }
 
     session["pending_customer"] = profile
-
     return render_template("place_order_customer.html", profile=profile)
 
 
 @app.route("/review_order_customer", methods=["POST"])
-def review_order_customer():
+def review_order_customer(): #Create customer order summary calculate total and save pending order in session
     if not session.get("user_email"):
         return redirect(url_for("login"))
 
@@ -1234,11 +1291,10 @@ def review_order_customer():
 
 
 @app.route("/confirm_seats", methods=["POST"])
-def confirm_seats():
+def confirm_seats(): #Confirm seats and create a reservation
     email = (request.form.get("email") or "").strip().lower()
     flight_number = int(request.form.get("flight_number"))
     seats_json = request.form.get("selected_seats_json") or "[]"
-
     if not email:
         return "חובה להכניס אימייל", 400
 
@@ -1267,7 +1323,7 @@ def confirm_seats():
     return render_template("reservation_success.html", reservation_code=reservation_code, email=email)
 
 @app.route("/manager_reports", methods=["GET"])
-def manager_reports():
+def manager_reports(): #Show manager reports page and run the selected report image and table preview
     report_id = request.args.get("report", "1").strip()
 
     report_map = {
@@ -1298,20 +1354,16 @@ def manager_reports():
 
 
 @app.route("/select_seats_customer", methods=["POST"])
-def select_seats_customer():
+def select_seats_customer(): #Show seat selection for a logged in customer available seats per class and taken seats
     flight_number = int(request.form.get("flight_number"))
-
     flight = get_flight_with_aircraft(flight_number)
     if not flight:
         return "Flight not found", 404
-
     aircraft_id = flight["aircraft_id_number"]
     classes = get_classes_for_aircraft(aircraft_id)
-
     seats_by_class = {}
     for c in classes:
         seats_by_class[c["type"]] = get_seats_for_flight_class(flight_number, c["type"])
-
     taken = get_taken_seats_for_flight(flight_number)
 
     return render_template(
@@ -1323,17 +1375,16 @@ def select_seats_customer():
     )
 
 @app.route("/payment_guest", methods=["GET"])
-def payment():
+def payment(): #Show guest payment page using pending order from session
     if not session.get("pending_flight_number") or not session.get("pending_seats_json") or not session.get("pending_customer"):
         return redirect(url_for("flight_search_guest"))
-
     total = session.get("pending_total")
     email = (session.get("pending_customer") or {}).get("email")
     return render_template("payment_guest.html", total=total, email=email)
 
 
 @app.route("/payment_post", methods=["POST"])
-def payment_post():
+def payment_post(): #Validate payment details create guest reservation and clear pending session data
     flight_number = session.get("pending_flight_number")
     seats_json = session.get("pending_seats_json")
     cust = session.get("pending_customer")
@@ -1377,7 +1428,7 @@ def payment_post():
     return redirect(url_for("payment_success", reservation_code=reservation_code))
 
 @app.route("/payment_customer", methods=["GET"])
-def payment_customer():
+def payment_customer(): #Show customer payment page using pending order from session
     if not session.get("user_email"):
         return redirect(url_for("login"))
 
@@ -1390,7 +1441,7 @@ def payment_customer():
 
 
 @app.route("/payment_customer_post", methods=["POST"])
-def payment_customer_post():
+def payment_customer_post(): #Validate customer payment details create reservation and clear pending session data
     if not session.get("user_email"):
         return redirect(url_for("login"))
 
@@ -1493,126 +1544,16 @@ def payment_customer_post():
     return redirect(url_for("payment_success_customer", reservation_code=reservation_code))
 
 @app.route("/payment_success", methods=["GET"])
-def payment_success():
+def payment_success(): #Show guest payment success page with reservation code
     reservation_code = request.args.get("reservation_code")
     return render_template("payment_success_guest.html", reservation_code=reservation_code)
 
 
 @app.route("/payment_success_customer", methods=["GET"])
-def payment_success_customer():
+def payment_success_customer(): #Show customer payment success page with reservation code
     reservation_code = request.args.get("reservation_code")
     return render_template("payment_success_customer.html", reservation_code=reservation_code)
 
-@app.route("/manager_buy_aircraft", methods=["GET", "POST"])
-def manager_buy_aircraft():
-    manufacturers = ["BOEING", "AIRBUS", "DASSAULT"]
-    sizes = ["SMALL", "LARGE"]
-
-    if request.method == "GET":
-        return render_template(
-            "manager_buy_aircraft.html",
-            manufacturers=manufacturers,
-            sizes=sizes,
-            step=1,
-            selected_manufacturer="",
-            selected_size=""
-        )
-
-    step = (request.form.get("step") or "1").strip()
-
-    manufacturer = (request.form.get("manufacturer") or "").strip().upper()
-    size = (request.form.get("size") or "").strip().upper()
-
-    if manufacturer not in manufacturers:
-        return render_template(
-            "manager_buy_aircraft.html",
-            manufacturers=manufacturers,
-            sizes=sizes,
-            step=1,
-            selected_manufacturer="",
-            selected_size="",
-            error="יצרן לא תקין."
-        )
-
-    if size not in sizes:
-        return render_template(
-            "manager_buy_aircraft.html",
-            manufacturers=manufacturers,
-            sizes=sizes,
-            step=1,
-            selected_manufacturer=manufacturer,
-            selected_size="",
-            error="גודל לא תקין."
-        )
-
-    if step == "1":
-        return render_template(
-            "manager_buy_aircraft.html",
-            manufacturers=manufacturers,
-            sizes=sizes,
-            step=2,
-            selected_manufacturer=manufacturer,
-            selected_size=size
-        )
-
-    purchase_date = datetime.today().date()
-
-    try:
-        econ_rows = int(request.form.get("econ_rows"))
-        econ_cols = int(request.form.get("econ_cols"))
-        if econ_rows < 1 or econ_cols < 1:
-            raise ValueError("ערכי ECONOMY חייבים להיות חיוביים.")
-
-        bus_rows = None
-        bus_cols = None
-        if size == "LARGE":
-            bus_rows = int(request.form.get("bus_rows"))
-            bus_cols = int(request.form.get("bus_cols"))
-            if bus_rows < 1 or bus_cols < 1:
-                raise ValueError("ערכי BUSINESS חייבים להיות חיוביים.")
-
-    except Exception as e:
-        return render_template(
-            "manager_buy_aircraft.html",
-            manufacturers=manufacturers,
-            sizes=sizes,
-            step=2,
-            selected_manufacturer=manufacturer,
-            selected_size=size,
-            error=f"נתוני מחלקות לא תקינים: {e}"
-        )
-
-    try:
-        new_aircraft_id = create_aircraft_with_classes_and_seats(
-            size=size,
-            manufacturer=manufacturer,
-            purchase_date=purchase_date,
-            econ_rows=econ_rows,
-            econ_cols=econ_cols,
-            bus_rows=bus_rows,
-            bus_cols=bus_cols
-        )
-
-    except Exception as e:
-        return render_template(
-            "manager_buy_aircraft.html",
-            manufacturers=manufacturers,
-            sizes=sizes,
-            step=2,
-            selected_manufacturer=manufacturer,
-            selected_size=size,
-            error=f"שגיאה בהוספת מטוס: {e}"
-        )
-
-    return render_template(
-        "manager_buy_aircraft.html",
-        manufacturers=manufacturers,
-        sizes=sizes,
-        step=1,
-        selected_manufacturer="",
-        selected_size="",
-        message=f"המטוס נרכש ונוסף בהצלחה! מספר מטוס: {new_aircraft_id}"
-    )
 
 if __name__ == '__main__':
     app.run(debug=True)

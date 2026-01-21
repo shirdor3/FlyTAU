@@ -10,7 +10,7 @@ REPORTS_DIR = os.path.join(os.path.dirname(__file__), "static", "reports")
 os.makedirs(REPORTS_DIR, exist_ok=True)
 
 
-def _query_df(sql: str, params=None) -> pd.DataFrame:
+def _query_df(sql: str, params=None) -> pd.DataFrame: #Run a SQL query and return the results as a pandas DataFrame
     if params is None:
         params = []
 
@@ -23,7 +23,7 @@ def _query_df(sql: str, params=None) -> pd.DataFrame:
 
     return pd.DataFrame(rows, columns=columns)
 
-def _save_plot(fig, filename: str) -> str:
+def _save_plot(fig, filename: str) -> str: #Save a matplotlib figure as an image file and return the relative path
     path = os.path.join(REPORTS_DIR, filename)
     fig.tight_layout()
     fig.savefig(path, dpi=160, transparent=False)
@@ -31,7 +31,7 @@ def _save_plot(fig, filename: str) -> str:
     return f"reports/{filename}"
 
 
-def report_avg_occupancy():
+def report_avg_occupancy(): #Calculate average seat occupancy for past flights and return a summary table
     sql = """
     SELECT AVG(100.0 * (CASE WHEN booked.booked_seats IS NULL THEN 0 ELSE booked.booked_seats END) / ac_seat.total_seats) AS avg_occupancy_percent
     FROM
@@ -63,7 +63,7 @@ def report_avg_occupancy():
 
     return img, table_df
 
-
+#Calculate total revenue by aircraft size manufacturer and class and return a bar chart and table
 def report_revenue_by_combo():
     sql = """
 SELECT combos.aircraft_size,combos.aircraft_manufacturer, combos.class_type,
@@ -102,7 +102,7 @@ ORDER BY combos.aircraft_size, combos.aircraft_manufacturer, combos.class_type;
     return img, df
 
 
-def report_staff_hours():
+def report_staff_hours(): #Calculate staff flight hours and return a chart for top 10
     sql = """
     SELECT staff_id, first_name, last_name,
         SUM(CASE WHEN flight_duration < 360 THEN flight_duration ELSE 0 END) / 60.0 AS short_hours,
@@ -179,7 +179,7 @@ def report_staff_hours():
     return img, table_df
 
 
-def report_cancellation_rate():
+def report_cancellation_rate(): #Calculate monthly customer cancellation rate and return a bar chart and table
     sql = """
     SELECT 
     CAST(strftime('%Y', r.reservation_date) AS INTEGER) AS order_year, 
@@ -213,7 +213,7 @@ def report_cancellation_rate():
     return img, df
 
 
-def report_aircraft_monthly_summary():
+def report_aircraft_monthly_summary(): #Create a monthly summary per aircraft and return a utilization chart and table
     sql = """
     SELECT 
     f.aircraft_id_number, 

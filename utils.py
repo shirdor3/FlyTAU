@@ -5,7 +5,7 @@ from datetime import date
 
 DB_PATH = 'FlyTAU_db.db'
 @contextmanager
-def db_conn():
+def db_conn(): #Open the database and give back a cursor then close it
     mydb = None
     cursor = None
     try:
@@ -25,7 +25,7 @@ def db_conn():
 
 
 @contextmanager
-def db_tx():
+def db_tx(): #Open the database as a transaction commit if ok rollback if error
     mydb = None
     cursor = None
     try:
@@ -48,7 +48,7 @@ def db_tx():
         if mydb:
             mydb.close()
 
-
+#Get a guest active reservation by email and reservation code
 def get_active_reservations_for_guest(email: str, reservation_code: int):
     sql = """
     SELECT
@@ -75,6 +75,7 @@ def get_active_reservations_for_guest(email: str, reservation_code: int):
         cur.execute(sql, (email, reservation_code))
         return cur.fetchall()
 
+#Cancel a guest reservation and return True if it worked
 def cancel_reservation_for_guest(email: str, reservation_code: int) -> bool:
     sql = """
     UPDATE reservations
@@ -87,7 +88,7 @@ def cancel_reservation_for_guest(email: str, reservation_code: int) -> bool:
         cur.execute(sql, (email, reservation_code))
         return cur.rowcount == 1
 
-
+#Get all seats of one class for one aircraft
 def get_seats_for_aircraft_class(aircraft_id_number: int, class_type: str):
     sql = (
         "SELECT `aircraft_id_number`, `class_type`, `row_number`, `column_number`, `price` "
@@ -101,7 +102,7 @@ def get_seats_for_aircraft_class(aircraft_id_number: int, class_type: str):
         return cur.fetchall()
 
 
-def get_all_flights_with_hours():
+def get_all_flights_with_hours(): #Return all flights with hours remaining until departure
     sql = """
     SELECT
   flight_number,
@@ -118,7 +119,7 @@ ORDER BY departure_datetime;
         cur.execute(sql)
         return cur.fetchall()
 
-
+#Cancel a flight if more than 72 hours away and cancel all linked active reservations
 def cancel_flight_and_linked_reservations(flight_number: int) -> dict:
     with db_tx() as (conn, cur):
         sql_cancel_flight = """
@@ -162,14 +163,14 @@ def cancel_flight_and_linked_reservations(flight_number: int) -> dict:
         return {"ok": True, "flight_number": flight_number, "reservations_updated": reservations_updated}
 
 
-def get_route_origins():
+def get_route_origins(): #Return all possible origin airports from the flight routes table
     sql = "SELECT DISTINCT origin_airport FROM flight_route ORDER BY origin_airport;"
     with db_conn() as cur:
         cur.execute(sql)
         return [r["origin_airport"] for r in cur.fetchall()]
 
 
-def get_route_destinations(origin_airport: str):
+def get_route_destinations(origin_airport: str): #Return all possible destination airports for a given origin airport
     sql = """
     SELECT destination_airport
     FROM flight_route
@@ -180,7 +181,7 @@ def get_route_destinations(origin_airport: str):
         cur.execute(sql, (origin_airport,))
         return [r["destination_airport"] for r in cur.fetchall()]
 
-
+#Get flight duration in minutes for a route or return None if route not found
 def get_flight_duration_minutes(origin_airport: str, destination_airport: str):
     sql = """
     SELECT flight_duration
@@ -192,11 +193,11 @@ def get_flight_duration_minutes(origin_airport: str, destination_airport: str):
         row = cur.fetchone()
         return None if not row else row["flight_duration"]
 
-
+#Check if a flight is long at least 360 minutes
 def is_long_flight(duration_minutes: int) -> bool:
     return duration_minutes is not None and duration_minutes >= 360
 
-
+#Find available aircraft for a time window at an origin airport with long flight rules
 def get_available_aircraft(departure_dt, arrival_dt, origin_airport: str, long_required: bool):
 
     sql = """
@@ -265,6 +266,7 @@ ORDER BY a.aircraft_id_number;
         ))
         return cur.fetchall()
 
+#Return required number of pilots and attendants based on aircraft size
 def required_crew_counts(aircraft_size: str):
     size = (aircraft_size or "").upper()
     if size == "LARGE":
@@ -273,6 +275,7 @@ def required_crew_counts(aircraft_size: str):
         return {"pilots": 2, "attendants": 3}
     return {"pilots": 2, "attendants": 2}
 
+#Find available pilots for a time window at an origin airport with long flight rules
 def get_available_pilots(departure_dt, arrival_dt, origin_airport: str, long_required: bool):
     sql = """
    SELECT p.id_number, p.first_name, p.last_name, p.long_flight_certification
@@ -339,7 +342,7 @@ ORDER BY p.id_number;
         ))
         return cur.fetchall()
 
-
+#Find available flight attendants for a time window at an origin airport with long flight rules
 def get_available_attendants(departure_dt, arrival_dt, origin_airport: str, long_required: bool):
     sql = """
     SELECT fa.id_number, fa.first_name, fa.last_name, fa.long_flight_certification
@@ -407,7 +410,9 @@ ORDER BY fa.id_number;
             origin_airport
         ))
         return cur.fetchall()
-def get_aircraft_classes(aircraft_id_number: int):
+
+
+def get_aircraft_classes(aircraft_id_number: int): #Get the class types for an aircraft
     sql = """
     SELECT type
     FROM class
@@ -418,7 +423,7 @@ def get_aircraft_classes(aircraft_id_number: int):
         cur.execute(sql, (aircraft_id_number,))
         return [r["type"] for r in cur.fetchall()]
 
-
+#Create a flight add crew and create seats with prices for that flight
 def create_flight_with_crew_and_prices(
     flight_number: int,
     aircraft_id_number: int,
@@ -507,8 +512,7 @@ def create_flight_with_crew_and_prices(
         """, rows_to_insert)
 
 
-def generate_unique_flight_number() -> int:
-
+def generate_unique_flight_number() -> int: #Pick a random free flight number
     for _ in range(20000):
         n = random.randint(0, 9999)
         with db_conn() as cur:
@@ -519,7 +523,7 @@ def generate_unique_flight_number() -> int:
     raise RuntimeError("לא ניתן להגריל מספר טיסה פנוי (ייתכן שכל הטווח תפוס).")
 
 
-def authenticate_user(email, password):
+def authenticate_user(email, password): #Check email and password and return the customer if they match
     sql = """
     SELECT rc.email, c.first_name, c.last_name
     FROM registered_customer rc
@@ -531,7 +535,7 @@ def authenticate_user(email, password):
         return cur.fetchone()
 
 
-def signup_user(data):
+def signup_user(data): #Create a new user account and save their details
     email = data['email']
     passport = data['passport']
 
@@ -581,7 +585,7 @@ def signup_user(data):
             return False, "אירעה שגיאה בתהליך הרישום. ייתכן שאחד הפרטים אינו תקין."
 
 
-def get_flight_with_aircraft(flight_number: int):
+def get_flight_with_aircraft(flight_number: int): #Get one flight including its aircraft id
     sql = """
     SELECT f.flight_number, f.departure_datetime, f.origin_airport, f.destination_airport,
            f.aircraft_id_number, f.status
@@ -593,7 +597,7 @@ def get_flight_with_aircraft(flight_number: int):
         return cur.fetchone()
 
 
-def get_classes_for_aircraft(aircraft_id_number: int):
+def get_classes_for_aircraft(aircraft_id_number: int): #Get the seat classes and sizes for an aircraft
     sql = """
     SELECT type, number_of_rows, number_of_columns
 FROM class
@@ -608,7 +612,7 @@ END;
         cur.execute(sql, (aircraft_id_number,))
         return cur.fetchall()
 
-
+#Get all seats for a flight in one class
 def get_seats_for_flight_class(flight_number: int, class_type: str):
     sql = """
     SELECT `aircraft_id_number`, `class_type`, `row_number`, `column_number`, `price`
@@ -622,8 +626,7 @@ def get_seats_for_flight_class(flight_number: int, class_type: str):
         return cur.fetchall()
 
 
-def get_taken_seats_for_flight(flight_number: int):
-
+def get_taken_seats_for_flight(flight_number: int): #Get which seats are already taken on a flight
     sql = """
     SELECT sir.aircraft_id_number, sir.class_type, sir.row_number, sir.column_number
     FROM seats_in_reservation sir
@@ -636,7 +639,7 @@ def get_taken_seats_for_flight(flight_number: int):
         rows = cur.fetchall()
         return set((x["aircraft_id_number"], x["class_type"], x["row_number"], x["column_number"]) for x in rows)
 
-
+#Create a reservation for a flight and save the selected seats
 def create_reservation_with_seats(email: str, flight_number: int, seats: list[dict]) -> int:
     with db_tx() as (conn, cur):
         cur.execute("SELECT aircraft_id_number FROM flight WHERE flight_number=?", (flight_number,))
@@ -693,7 +696,7 @@ def create_reservation_with_seats(email: str, flight_number: int, seats: list[di
 
         return reservation_code
 
-def get_airport_countries():
+def get_airport_countries(): #Get the list of countries that exist in the airports table
     sql = """
         SELECT DISTINCT country
         FROM airport
@@ -705,6 +708,7 @@ def get_airport_countries():
         rows = cur.fetchall()
     return [r["country"] for r in rows]
 
+#Check manager id and password and return the manager if they match
 def authenticate_manager(manager_id: int, password: str):
     sql = """
         SELECT id_number, first_name, last_name
@@ -716,7 +720,7 @@ def authenticate_manager(manager_id: int, password: str):
         cur.execute(sql, (manager_id, password))
         return cur.fetchone()
 
-def get_all_flights_with_hours_and_occupancy():
+def get_all_flights_with_hours_and_occupancy(): #Get flights with seat counts and flags like past or full
     sql = """
     SELECT
   f.flight_number,
@@ -772,18 +776,19 @@ ORDER BY f.departure_datetime;
         rows_list.append(mutable_r)
     return rows_list
 
-def get_all_airports():
+def get_all_airports(): #Get a list of all airport names
     sql = "SELECT airport_name FROM airport ORDER BY airport_name;"
     with db_conn() as cur:
         cur.execute(sql)
         return [r["airport_name"] for r in cur.fetchall()]
-def aircraft_id_exists(aircraft_id_number: int) -> bool:
+
+def aircraft_id_exists(aircraft_id_number: int) -> bool: #Check if an aircraft id already exists
     sql = "SELECT 1 FROM aircraft WHERE aircraft_id_number = ? LIMIT 1;"
     with db_conn() as cur:
         cur.execute(sql, (aircraft_id_number,))
         return cur.fetchone() is not None
 
-
+#Pick a random free aircraft id number
 def generate_unique_aircraft_id_4_digits(max_tries: int = 5000) -> int:
     for _ in range(max_tries):
         candidate = random.randint(1000, 9999)
@@ -791,7 +796,7 @@ def generate_unique_aircraft_id_4_digits(max_tries: int = 5000) -> int:
             return candidate
     raise RuntimeError("לא הצלחתי לייצר מספר מטוס ייחודי (4 ספרות).")
 
-
+#Create a new aircraft row and return its id
 def create_aircraft(size: str, manufacturer: str, purchase_date):
     sql = """
     INSERT INTO aircraft (aircraft_id_number, size, manufacturer, purchase_date)
@@ -802,6 +807,7 @@ def create_aircraft(size: str, manufacturer: str, purchase_date):
         cur.execute(sql, (new_id, size, manufacturer, purchase_date))
     return new_id
 
+#Create a reservation and also save customer name and phones
 def create_reservation_with_seats_with_customer_details(
     email: str,
     first_name: str,
@@ -887,12 +893,8 @@ def create_reservation_with_seats_with_customer_details(
 
         return reservation_code
 
-
+#Check if this id number is already in pilot attendant or manager tables
 def crew_member_exists_in_any_table(id_number: int) -> bool:
-    """
-    בודק אם ת"ז כבר קיימת כאיש צוות או כמנהל
-    (pilot / flight_attendant / manager)
-    """
     sql = """
     SELECT 1 FROM pilot WHERE id_number = ?
     UNION
@@ -905,7 +907,7 @@ def crew_member_exists_in_any_table(id_number: int) -> bool:
         cur.execute(sql, (id_number, id_number, id_number))
         return cur.fetchone() is not None
 
-
+#Add a pilot to the database
 def create_pilot(
     id_number: int,
     first_name: str,
@@ -929,7 +931,7 @@ def create_pilot(
             house_number, phone_number, employment_start_date, long_flight_certification
         ))
 
-
+#Add a flight attendant to the database
 def create_attendant(
     id_number: int,
     first_name: str,
@@ -953,7 +955,7 @@ def create_attendant(
             house_number, phone_number, employment_start_date, long_flight_certification
         ))
 
-
+#Create an aircraft and also create its classes and seats
 def create_aircraft_with_classes_and_seats(
     *,
     size: str,
